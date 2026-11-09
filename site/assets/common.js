@@ -104,11 +104,10 @@
   let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => redrawers.forEach((f) => f()), 120); });
   matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => redrawers.forEach((f) => f()));
 
-  // STICKY PREVIEW: ?sticky=1 turns on the sticky masthead and carries the flag across the page tabs.
-  if (new URLSearchParams(location.search).has('sticky')) {
+  // Sticky masthead: pinned on every page, compacts after scrolling.
+  {
     const root = document.documentElement;
     root.classList.add('sticky');
-    document.querySelectorAll('nav.tabs a').forEach((a) => { const u = new URL(a.getAttribute('href'), location.href); u.searchParams.set('sticky', '1'); a.href = u.href; });
     const mast = document.querySelector('.masthead');
     const setH = () => mast && root.style.setProperty('--mast-h', mast.offsetHeight + 'px');
     if (mast && 'ResizeObserver' in window) new ResizeObserver(setH).observe(mast);
