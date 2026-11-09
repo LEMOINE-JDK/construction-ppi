@@ -38,6 +38,13 @@
       "kind": "material"
     },
     {
+      "id": "WPUID612",
+      "name": "Materials & Components for Construction",
+      "short": "Matls & Components",
+      "group": "Input Indices",
+      "kind": "material"
+    },
+    {
       "id": "WPU1333",
       "name": "Ready-Mix Concrete",
       "short": "Ready-Mix",
@@ -62,6 +69,13 @@
       "id": "WPU1394",
       "name": "Paving Mixtures & Blocks",
       "short": "Paving Mix",
+      "group": "Concrete",
+      "kind": "material"
+    },
+    {
+      "id": "WPU1322",
+      "name": "Cement, Hydraulic",
+      "short": "Cement",
       "group": "Concrete",
       "kind": "material"
     },
@@ -105,6 +119,13 @@
       "id": "WPU1073",
       "name": "Sheet Metal Products",
       "short": "Sheet Metal",
+      "group": "Steel",
+      "kind": "material"
+    },
+    {
+      "id": "WPU101704",
+      "name": "Hot-Rolled Bars, Plates & Structural Shapes",
+      "short": "Hot-Rolled Shapes",
       "group": "Steel",
       "kind": "material"
     },
@@ -162,6 +183,69 @@
       "name": "Flat Glass",
       "short": "Flat Glass",
       "group": "Other Materials",
+      "kind": "material"
+    },
+    {
+      "id": "WPU1392",
+      "name": "Insulation Materials",
+      "short": "Insulation",
+      "group": "Other Materials",
+      "kind": "material"
+    },
+    {
+      "id": "WPU117522",
+      "name": "Switchgear & Switchboard Apparatus",
+      "short": "Switchgear",
+      "group": "Electrical Equipment",
+      "kind": "material"
+    },
+    {
+      "id": "WPU1174",
+      "name": "Transformers & Power Regulators",
+      "short": "Transformers",
+      "group": "Electrical Equipment",
+      "kind": "material"
+    },
+    {
+      "id": "WPU1173",
+      "name": "Motors, Generators & Motor-Generator Sets",
+      "short": "Motors & Gens",
+      "group": "Electrical Equipment",
+      "kind": "material"
+    },
+    {
+      "id": "WPU1083",
+      "name": "Lighting Fixtures",
+      "short": "Lighting",
+      "group": "Electrical Equipment",
+      "kind": "material"
+    },
+    {
+      "id": "WPU1148",
+      "name": "Air Conditioning & Refrigeration Equipment",
+      "short": "HVAC Equip",
+      "group": "Mechanical & Vertical Transport",
+      "kind": "material"
+    },
+    {
+      "id": "WPU1054",
+      "name": "Plumbing Fixture Fittings & Trim",
+      "short": "Plumbing Fittings",
+      "group": "Mechanical & Vertical Transport",
+      "kind": "material"
+    },
+    {
+      "id": "WPU1142",
+      "name": "Elevators, Escalators & Other Lifts",
+      "short": "Elevators",
+      "group": "Mechanical & Vertical Transport",
+      "kind": "material"
+    },
+    {
+      "id": "WPU112",
+      "name": "Construction Machinery & Equipment",
+      "short": "Constr Equipment",
+      "group": "Contractor Equipment",
       "kind": "material"
     },
     {
