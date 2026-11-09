@@ -56,7 +56,7 @@
   const cellClass = (v) => v == null ? 'c-na' : v >= 20 ? 'c-u4' : v >= 10 ? 'c-u3' : v >= 5 ? 'c-u2' : v >= 2 ? 'c-u1' : v > -2 ? 'c-0' : v > -5 ? 'c-d1' : v > -10 ? 'c-d2' : 'c-d3';
   const fredUrl = (id) => `https://fred.stlouisfed.org/series/${encodeURIComponent(id)}`;
 
-  let D, byId, state = { sort: 'group', bldView: 'monthly', a: 'WPUIP231200', b: '', mode: 'yoy', range: 60 };
+  let D, byId, state = { sort: 'group', bldView: 'monthly', a: 'WPUIP231200', b: 'WPU801', mode: 'yoy', range: 60 };
 
   const yoySeries = (s) => s.history.map((v, i) => (i >= 12 && v != null && s.history[i - 12] != null) ? Math.round((v / s.history[i - 12] - 1) * 1000) / 10 : null);
 
