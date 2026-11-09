@@ -1,0 +1,25 @@
+name: Find FRED series
+
+# Manual utility: Actions > Find FRED series > Run workflow, then enter search phrases separated by |
+on:
+  workflow_dispatch:
+    inputs:
+      queries:
+        description: 'Search phrases, separated by |'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          QUERIES: ${{ inputs.queries }}
+        run: node scripts/find-series.mjs "$QUERIES"
