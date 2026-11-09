@@ -2,39 +2,245 @@
   "_readme": "Series tracked by the dashboard. Add or remove a row here; the next run picks it up. kind: material (input cost, what contractors pay) | building (new nonresidential building construction, what contractors charge) | trade (nonresidential trade contractor selling prices).",
   "historyStart": "2018-01-01",
   "series": [
-    { "id": "WPUIP231200", "name": "Inputs to Nonresidential Construction", "short": "Nonres Inputs", "group": "Input Indices", "kind": "material" },
-    { "id": "WPUIP231100", "name": "Inputs to Residential Construction", "short": "Resi Inputs", "group": "Input Indices", "kind": "material" },
-    { "id": "WPUIP231231", "name": "Inputs to Highway & Street Construction", "short": "Highway Inputs", "group": "Input Indices", "kind": "material" },
-    { "id": "WPUIP2312202", "name": "Inputs to Industrial Structures", "short": "Industrial Inputs", "group": "Input Indices", "kind": "material" },
-    { "id": "WPUIP2312301", "name": "Inputs to Non-Building Structures", "short": "Non-Bldg Inputs", "group": "Input Indices", "kind": "material" },
-    { "id": "WPU1333", "name": "Ready-Mix Concrete", "short": "Ready-Mix", "group": "Concrete", "kind": "material" },
-    { "id": "WPU1332", "name": "Concrete Pipe", "short": "Concrete Pipe", "group": "Concrete", "kind": "material" },
-    { "id": "WPU1331", "name": "Concrete Block & Brick", "short": "Block & Brick", "group": "Concrete", "kind": "material" },
-    { "id": "WPU1394", "name": "Asphalt Paving Mixtures", "short": "Paving Mix", "group": "Concrete", "kind": "material" },
-    { "id": "WPUSI004011", "name": "Lumber & Plywood", "short": "Lumber", "group": "Wood", "kind": "material" },
-    { "id": "WPU1017", "name": "Steel Mill Products", "short": "Steel Mill", "group": "Steel", "kind": "material" },
-    { "id": "WPU107405", "name": "Fabricated Structural Steel", "short": "Fab Structural", "group": "Steel", "kind": "material" },
-    { "id": "WPU1074055", "name": "Fabricated Steel for Bridges", "short": "Bridge Steel", "group": "Steel", "kind": "material", "note": "FRED history begins Apr 2019. Values differ from some published tables." },
-    { "id": "WPU101706", "name": "Steel Pipe & Tube", "short": "Pipe & Tube", "group": "Steel", "kind": "material" },
-    { "id": "WPU1073", "name": "Sheet Metal Products", "short": "Sheet Metal", "group": "Steel", "kind": "material" },
-    { "id": "WPU102603", "name": "Nonferrous Wire & Cable", "short": "Wire & Cable", "group": "Nonferrous Metals", "kind": "material" },
-    { "id": "WPU10260314", "name": "Copper Wire & Cable", "short": "Copper Wire", "group": "Nonferrous Metals", "kind": "material" },
-    { "id": "WPU102502", "name": "Copper & Brass Mill Shapes", "short": "Copper Shapes", "group": "Nonferrous Metals", "kind": "material" },
-    { "id": "WPU102501", "name": "Aluminum Mill Shapes", "short": "Aluminum", "group": "Nonferrous Metals", "kind": "material" },
-    { "id": "WPU1361", "name": "Asphalt Roofing & Siding", "short": "Roofing", "group": "Other Materials", "kind": "material" },
-    { "id": "WPU0721", "name": "Plastic Construction Products", "short": "Plastics", "group": "Other Materials", "kind": "material" },
-    { "id": "WPU137", "name": "Gypsum Products", "short": "Gypsum", "group": "Other Materials", "kind": "material" },
-    { "id": "WPU1311", "name": "Flat Glass", "short": "Flat Glass", "group": "Other Materials", "kind": "material" },
-    { "id": "WPU057303", "name": "No. 2 Diesel Fuel", "short": "Diesel", "group": "Energy", "kind": "material", "volatile": true },
-    { "id": "WPU801", "name": "New Nonresidential Buildings (all)", "short": "Nonres Bldgs", "group": "Building Types", "kind": "building" },
-    { "id": "WPU801101", "name": "New Warehouse Building", "short": "Warehouse", "group": "Building Types", "kind": "building" },
-    { "id": "WPU801102", "name": "New School Building", "short": "School", "group": "Building Types", "kind": "building" },
-    { "id": "WPU801103", "name": "New Office Building", "short": "Office", "group": "Building Types", "kind": "building" },
-    { "id": "WPU801104", "name": "New Industrial Building", "short": "Industrial", "group": "Building Types", "kind": "building" },
-    { "id": "WPU801105", "name": "New Health Care Building", "short": "Healthcare", "group": "Building Types", "kind": "building" },
-    { "id": "PCU23811X23811X", "name": "Concrete Contractors (Nonres)", "short": "Concrete Sub", "group": "Trade Contractors", "kind": "trade" },
-    { "id": "PCU23816X23816X", "name": "Roofing Contractors (Nonres)", "short": "Roofing Sub", "group": "Trade Contractors", "kind": "trade" },
-    { "id": "PCU23821X23821X", "name": "Electrical Contractors (Nonres)", "short": "Electrical Sub", "group": "Trade Contractors", "kind": "trade" },
-    { "id": "PCU23822X23822X", "name": "Plumbing & HVAC Contractors (Nonres)", "short": "Mech/Plumb Sub", "group": "Trade Contractors", "kind": "trade" }
+    {
+      "id": "WPUIP231200",
+      "name": "Inputs to Nonresidential Construction",
+      "short": "Nonres Inputs",
+      "group": "Input Indices",
+      "kind": "material"
+    },
+    {
+      "id": "WPUIP231100",
+      "name": "Inputs to Residential Construction",
+      "short": "Resi Inputs",
+      "group": "Input Indices",
+      "kind": "material"
+    },
+    {
+      "id": "WPUIP231231",
+      "name": "Inputs to Highway & Street Construction",
+      "short": "Highway Inputs",
+      "group": "Input Indices",
+      "kind": "material"
+    },
+    {
+      "id": "WPUIP2312202",
+      "name": "Inputs to Industrial Structures (services)",
+      "short": "Industrial Inputs (svc)",
+      "group": "Input Indices",
+      "kind": "material"
+    },
+    {
+      "id": "WPUIP2312301",
+      "name": "Inputs to Other Nonresidential Construction (goods)",
+      "short": "Other Nonres Inputs",
+      "group": "Input Indices",
+      "kind": "material"
+    },
+    {
+      "id": "WPU1333",
+      "name": "Ready-Mix Concrete",
+      "short": "Ready-Mix",
+      "group": "Concrete",
+      "kind": "material"
+    },
+    {
+      "id": "WPU1332",
+      "name": "Concrete Pipe",
+      "short": "Concrete Pipe",
+      "group": "Concrete",
+      "kind": "material"
+    },
+    {
+      "id": "WPU1331",
+      "name": "Concrete Block & Brick",
+      "short": "Block & Brick",
+      "group": "Concrete",
+      "kind": "material"
+    },
+    {
+      "id": "WPU1394",
+      "name": "Paving Mixtures & Blocks",
+      "short": "Paving Mix",
+      "group": "Concrete",
+      "kind": "material"
+    },
+    {
+      "id": "WPUSI004011",
+      "name": "Lumber & Plywood",
+      "short": "Lumber",
+      "group": "Wood",
+      "kind": "material"
+    },
+    {
+      "id": "WPU1017",
+      "name": "Steel Mill Products",
+      "short": "Steel Mill",
+      "group": "Steel",
+      "kind": "material"
+    },
+    {
+      "id": "WPU107405",
+      "name": "Fabricated Structural Metal",
+      "short": "Fab Structural",
+      "group": "Steel",
+      "kind": "material"
+    },
+    {
+      "id": "WPU1074055",
+      "name": "Other Fabricated Structural Metal, incl. Bridges",
+      "short": "Other Fab Metal",
+      "group": "Steel",
+      "kind": "material",
+      "note": "FRED history begins Apr 2019. Values differ from some published tables, likely a different data vintage."
+    },
+    {
+      "id": "WPU101706",
+      "name": "Steel Pipe & Tube",
+      "short": "Pipe & Tube",
+      "group": "Steel",
+      "kind": "material"
+    },
+    {
+      "id": "WPU1073",
+      "name": "Sheet Metal Products",
+      "short": "Sheet Metal",
+      "group": "Steel",
+      "kind": "material"
+    },
+    {
+      "id": "WPU102603",
+      "name": "Nonferrous Wire & Cable",
+      "short": "Wire & Cable",
+      "group": "Nonferrous Metals",
+      "kind": "material"
+    },
+    {
+      "id": "WPU10260314",
+      "name": "Copper Wire & Cable",
+      "short": "Copper Wire",
+      "group": "Nonferrous Metals",
+      "kind": "material"
+    },
+    {
+      "id": "WPU102502",
+      "name": "Copper & Brass Mill Shapes",
+      "short": "Copper Shapes",
+      "group": "Nonferrous Metals",
+      "kind": "material"
+    },
+    {
+      "id": "WPU102501",
+      "name": "Aluminum Mill Shapes",
+      "short": "Aluminum",
+      "group": "Nonferrous Metals",
+      "kind": "material"
+    },
+    {
+      "id": "WPU1361",
+      "name": "Asphalt Roofing & Siding",
+      "short": "Roofing",
+      "group": "Other Materials",
+      "kind": "material"
+    },
+    {
+      "id": "WPU0721",
+      "name": "Plastic Construction Products",
+      "short": "Plastics",
+      "group": "Other Materials",
+      "kind": "material"
+    },
+    {
+      "id": "WPU137",
+      "name": "Gypsum Products",
+      "short": "Gypsum",
+      "group": "Other Materials",
+      "kind": "material"
+    },
+    {
+      "id": "WPU1311",
+      "name": "Flat Glass",
+      "short": "Flat Glass",
+      "group": "Other Materials",
+      "kind": "material"
+    },
+    {
+      "id": "WPU057303",
+      "name": "No. 2 Diesel Fuel",
+      "short": "Diesel",
+      "group": "Energy",
+      "kind": "material",
+      "volatile": true
+    },
+    {
+      "id": "WPU801",
+      "name": "New Nonresidential Buildings (all)",
+      "short": "Nonres Bldgs",
+      "group": "Building Types",
+      "kind": "building"
+    },
+    {
+      "id": "WPU801101",
+      "name": "New Warehouse Building",
+      "short": "Warehouse",
+      "group": "Building Types",
+      "kind": "building"
+    },
+    {
+      "id": "WPU801102",
+      "name": "New School Building",
+      "short": "School",
+      "group": "Building Types",
+      "kind": "building"
+    },
+    {
+      "id": "WPU801103",
+      "name": "New Office Building",
+      "short": "Office",
+      "group": "Building Types",
+      "kind": "building"
+    },
+    {
+      "id": "WPU801104",
+      "name": "New Industrial Building",
+      "short": "Industrial",
+      "group": "Building Types",
+      "kind": "building"
+    },
+    {
+      "id": "WPU801105",
+      "name": "New Health Care Building",
+      "short": "Healthcare",
+      "group": "Building Types",
+      "kind": "building"
+    },
+    {
+      "id": "PCU23811X23811X",
+      "name": "Concrete Contractors (Nonres)",
+      "short": "Concrete Sub",
+      "group": "Trade Contractors",
+      "kind": "trade"
+    },
+    {
+      "id": "PCU23816X23816X",
+      "name": "Roofing Contractors (Nonres)",
+      "short": "Roofing Sub",
+      "group": "Trade Contractors",
+      "kind": "trade"
+    },
+    {
+      "id": "PCU23821X23821X",
+      "name": "Electrical Contractors (Nonres)",
+      "short": "Electrical Sub",
+      "group": "Trade Contractors",
+      "kind": "trade"
+    },
+    {
+      "id": "PCU23822X23822X",
+      "name": "Plumbing & HVAC Contractors (Nonres)",
+      "short": "Mech/Plumb Sub",
+      "group": "Trade Contractors",
+      "kind": "trade"
+    }
   ]
 }
