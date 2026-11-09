@@ -80,7 +80,8 @@ nav.jump .wrap { display: flex; gap: 4px 20px; flex-wrap: wrap; padding-block: 1
 nav.jump a { text-decoration: none; color: var(--ink-2); padding: 2px 0; border-bottom: 2px solid transparent; }
 nav.jump a:hover { color: var(--ink); border-bottom-color: var(--yellow); }
 
-main .wrap { display: grid; gap: 40px; padding-block: 28px 56px; }
+main .wrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; padding-block: 28px 56px; }
+main section { min-width: 0; }
 section > h2 { font-size: 1.2rem; margin: 0 0 4px; text-wrap: balance; }
 .lede { margin: 0 0 16px; color: var(--ink-2); font-size: .9rem; max-width: 72ch; }
 .eyebrow { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); font-weight: 600; }
