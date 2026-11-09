@@ -21,5 +21,6 @@ jobs:
           node-version: '24'
       - env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
           QUERIES: ${{ inputs.queries }}
         run: node scripts/find-series.mjs "$QUERIES"
