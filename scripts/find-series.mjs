@@ -2,7 +2,7 @@
 // Usage: FRED_API_KEY=... CENSUS_API_KEY=... node scripts/find-series.mjs "construction spending health care|census:data center|census-data:A0DAT"
 //   plain text       -> FRED series search (ID, frequency, seasonal adjustment, last observation, title)
 //   census:<text>    -> Census construction spending (EITS VIP) category and data-type codes whose labels match
-//   census-data:<cc> -> latest 6 months of values for a VIP category code, every data type
+//   census-data:<cc> -> 2026 values for a VIP category code, every data type; census-data:* lists all codes
 const KEY = process.env.FRED_API_KEY;
 const CKEY = process.env.CENSUS_API_KEY;
 const queries = process.argv.slice(2).flatMap((q) => q.split('|')).map((q) => q.trim()).filter(Boolean);
@@ -33,14 +33,15 @@ async function censusCodes(text) {
 async function censusData(cc) {
   const url = new URL(VIP);
   url.searchParams.set('get', 'cell_value,data_type_code,category_code,seasonally_adj,time_slot_id,error_data');
-  url.searchParams.set('category_code', cc);
-  url.searchParams.set('time', 'from 2026-01');
+  if (cc !== '*') url.searchParams.set('category_code', cc);
+  url.searchParams.set('time', cc === '*' ? '2026-08' : 'from 2026-01');
   if (CKEY) url.searchParams.set('key', CKEY);
   const res = await fetch(url);
   console.log(`\n=== census data ${cc}: HTTP ${res.status}`);
   if (!res.ok) { console.log((await res.text()).slice(0, 300)); return; }
   const rows = await res.json();
   console.log(rows[0].join(' | '));
+  if (cc === '*') { const ci = rows[0].indexOf('category_code'), di = rows[0].indexOf('data_type_code'); const pairs = {}; for (const r of rows.slice(1)) (pairs[r[ci]] ||= new Set()).add(r[di]); for (const [c, d] of Object.entries(pairs).sort()) console.log(`${c.padEnd(12)} ${[...d].sort().join(' ')}`); return; }
   for (const r of rows.slice(1).sort((a, b) => (a.at(-1) < b.at(-1) ? 1 : -1)).slice(0, 40)) console.log(r.join(' | '));
 }
 
