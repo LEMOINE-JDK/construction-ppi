@@ -55,7 +55,7 @@
    * Line chart into an <svg>. opts: { months, lines: [{label, values, color, width, dash}], yFmt, tipFmt, zero, keyEl, tipEl }
    */
   function lineChart(svg, opts) {
-    const W = svg.clientWidth || 800, H = svg.clientHeight || 320;
+    const box = svg.getBoundingClientRect(); const W = Math.round(box.width) || 800, H = Math.round(box.height) || 320;
     const m = { l: 58, r: 14, t: 12, b: 28 };
     const { months, lines } = opts;
     const vals = lines.flatMap((l) => l.values).filter((v) => v != null);
