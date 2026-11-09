@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LEMOINE Construction Spending Dashboard</title>
+<meta name="description" content="Census construction spending by market, in current and constant dollars. Updated automatically.">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<header class="band">
+  <div class="wrap">
+    <div class="brand">
+      <img src="assets/logo-reversed.svg" alt="LEMOINE" onerror="this.remove()">
+      <h1>Spending &amp; Markets<small>Census construction put in place, current and constant dollars</small></h1>
+    </div>
+    <div class="stamp" id="stamp"><strong>Loading data…</strong></div>
+  </div>
+</header>
+<nav class="tabs" aria-label="Dashboards">
+  <div class="wrap"><a href="./">Producer Prices</a><a href="escalation.html">Escalation Planner</a><a href="spending.html" aria-current="page">Spending &amp; Markets</a><a href="labor.html">Labor &amp; Productivity</a></div>
+</nav>
+
+<main>
+  <div class="wrap" id="app">
+    <p class="loading" id="loading">Loading the latest Census data…</p>
+  </div>
+</main>
+
+<footer id="method">
+  <div class="wrap">
+    <h2>Method and sources</h2>
+    <p><b>Spending</b> is the value of construction put in place each month, at a seasonally adjusted annual rate (SAAR). <b>Year to date</b> sums actual monthly dollars, not seasonally adjusted, as Census reports it.</p>
+    <p><b>Constant dollars</b> restate each month's spending in the latest month's prices using the BLS selling-price index for new nonresidential buildings (PPI <span id="m-defl">WPU801</span>). Real change shows whether more building is happening, or the same work is costing more. It is applied to building markets; for Power and total construction it is only an approximation.</p>
+    <p><b>Nonresidential Buildings</b> is the sum of the building markets listed under it. <b>Office</b> includes data centers. Census publishes data centers separately only in its detailed spreadsheets, not in its data feed.</p>
+    <p>Census revises the prior two months with each release and benchmarks the full series each July, so recent months change.</p>
+    <p id="m-source"></p>
+    <p class="tagline">LEMOINE &nbsp;|&nbsp; One mission. <span>Yours.™</span></p>
+  </div>
+</footer>
+
+<script src="assets/common.js"></script>
+<script>
+(() => {
+  'use strict';
+  const { $, esc, fmtPct, fmtBil, fmtMonth, cssVar, spark, tone } = LD;
+  let D, byKey, state = { key: 'nrbldg', range: 60 };
+
+  function kpi(cls, eyebrow, val, sub, values) {
+    return `<div class="kpi ${cls}"><span class="eyebrow">${eyebrow}</span><span class="val num">${val}</span><span class="sub">${sub}</span>${values ? spark(values) : ''}</div>`;
+  }
+
+  function renderSummary() {
+    const t = byKey.total, nb = byKey.nrbldg, h = byKey.health, e = byKey.edu, mfg = byKey.mfg, of = byKey.office;
+    let html = `<section id="summary" aria-labelledby="h-sum"><h2 id="h-sum">Construction spending, ${esc(D.dataMonthLabel)}</h2><p class="lede">Year-over-year change in the seasonally adjusted annual rate. Sparklines show the last 25 months.</p><div class="kpis">`;
+    html += kpi('lead', 'Nonresidential buildings', fmtPct(nb.yoy), `${fmtBil(nb.latest, 0)} SAAR · ${fmtPct(nb.realYoy)} after inflation`, nb.history);
+    html += kpi('', 'Health care', fmtPct(h.yoy), `${fmtBil(h.latest)} SAAR · YTD ${fmtPct(h.ytdPct)}`, h.history);
+    html += kpi('', 'Educational', fmtPct(e.yoy), `${fmtBil(e.latest)} SAAR · YTD ${fmtPct(e.ytdPct)}`, e.history);
+    html += kpi('', 'Office incl. data centers', fmtPct(of.yoy), `${fmtBil(of.latest)} SAAR · YTD ${fmtPct(of.ytdPct)}`, of.history);
+    html += kpi('', 'Manufacturing', fmtPct(mfg.yoy), `${fmtBil(mfg.latest)} SAAR · YTD ${fmtPct(mfg.ytdPct)}`, mfg.history);
+    html += kpi('', 'Total construction', fmtPct(t.yoy), `${fmtBil(t.latest, 0)} SAAR`, t.history);
+    html += `</div>`;
+    if (nb.yoy != null && nb.realYoy != null) {
+      const gap = Math.round((nb.yoy - nb.realYoy) * 10) / 10;
+      html += `<p class="gap-note">Nonresidential building spending is ${fmtPct(nb.yoy)} in dollars but <b>${fmtPct(nb.realYoy)}</b> after construction price inflation. About ${Math.abs(gap).toFixed(1)} points of the dollar change is price, not volume. ${nb.realYoy < 0 ? 'Less physical work is being put in place than a year ago.' : 'Physical volume is still growing.'}</p>`;
+    }
+    return html + '</section>';
+  }
+
+  function renderTable() {
+    let html = `<section id="markets" aria-labelledby="h-mk"><h2 id="h-mk">Markets</h2><p class="lede">Click a market to chart it. Private and public shares are of the latest month.</p><div class="tablebox"><table class="plain" style="min-width:860px"><thead><tr><th>Market</th><th>SAAR</th><th>MoM</th><th>YoY</th><th>YoY real</th><th>YTD</th><th>YTD vs last yr</th><th>Private</th><th>Public</th></tr></thead><tbody>`;
+    let g = null;
+    for (const m of D.markets) {
+      if (m.group !== g) { html += `<tr class="grp"><th colspan="9">${esc(m.group)}</th></tr>`; g = m.group; }
+      const id = m.ids.saar ? `<span class="sub-id">${esc(m.ids.saar)}</span>` : '<span class="sub-id">computed</span>';
+      html += `<tr class="click${m.key === state.key ? ' sel' : ''}${m.key === 'nrbldg' ? ' total' : ''}" data-key="${m.key}" tabindex="0"><td>${esc(m.name)}${id}</td><td>${fmtBil(m.latest)}</td><td class="${tone(m.mom)}">${fmtPct(m.mom)}</td><td class="${tone(m.yoy)}">${fmtPct(m.yoy)}</td><td class="${tone(m.realYoy)}">${m.building || m.key === 'nrbldg' ? fmtPct(m.realYoy) : `<span title="Approximate: deflated with a building price index">${fmtPct(m.realYoy)}*</span>`}</td><td>${fmtBil(m.ytd)}</td><td class="${tone(m.ytdPct)}">${fmtPct(m.ytdPct)}</td><td>${m.privateShare == null ? '–' : m.privateShare.toFixed(0) + '%'}</td><td>${m.publicShare == null ? '–' : m.publicShare.toFixed(0) + '%'}</td></tr>`;
+    }
+    return html + `</tbody></table></div><p class="lede" style="margin-top:8px">* Approximate for non-building markets. YTD is through ${esc(D.dataMonthLabel)}.</p></section>`;
+  }
+
+  function renderChartShell() {
+    return `<section id="chart-sec" aria-labelledby="h-ch"><h2 id="h-ch">Trend</h2><p class="lede" id="ch-lede"></p>
+      <div class="toolbar"><div class="seg" role="group" aria-label="Range"><button type="button" data-range="36" aria-pressed="${state.range === 36}">3 yr</button><button type="button" data-range="60" aria-pressed="${state.range === 60}">5 yr</button><button type="button" data-range="0" aria-pressed="${state.range === 0}">All</button></div></div>
+      <div class="chartbox"><svg id="chart" role="img" aria-label="Spending trend chart"></svg><div class="tip" id="tip"></div><div class="keyline" id="keyline"></div></div></section>`;
+  }
+
+  function draw() {
+    const m = byKey[state.key];
+    $('#ch-lede').textContent = `${m.name}: seasonally adjusted annual rate in current dollars and in constant ${D.dataMonthLabel} dollars.`;
+    const start = state.range ? Math.max(0, D.months.length - state.range) : 0;
+    const b = (v) => (v == null ? '–' : '$' + (v / 1000).toFixed(v >= 100000 ? 0 : 1) + 'B');
+    LD.lineChart($('#chart'), {
+      months: D.months.slice(start),
+      lines: [
+        { label: 'Current dollars', values: m.history.slice(start), color: cssVar('--gold'), width: 2.6 },
+        { label: `Constant ${D.dataMonthLabel} dollars`, short: 'Constant $', values: m.realHistory.slice(start), color: cssVar('--midblue'), width: 2 },
+      ],
+      yFmt: b, tipFmt: b, keyEl: $('#keyline'), tipEl: $('#tip'),
+    });
+  }
+
+  function select(key) {
+    state.key = key;
+    document.querySelectorAll('tr.click').forEach((r) => r.classList.toggle('sel', r.dataset.key === key));
+    draw();
+  }
+
+  LD.loadJSON('spending.json').then((data) => {
+    D = data; byKey = Object.fromEntries(D.markets.map((m) => [m.key, m]));
+    LD.setStamp(D.dataMonthLabel, D.generatedAt);
+    $('#app').innerHTML = renderSummary() + renderTable() + renderChartShell();
+    $('#m-defl').textContent = `${D.deflator.id}, ${fmtMonth(D.deflator.month)}`;
+    $('#m-source').textContent = `Source: ${D.source} Data checked ${new Date(D.generatedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.${D.failedSeries?.length ? ` Not refreshed on the last run: ${D.failedSeries.join(', ')}.` : ''}`;
+    draw();
+    document.addEventListener('click', (e) => {
+      const r = e.target.closest('[data-range]');
+      if (r) { state.range = +r.dataset.range; r.parentElement.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b === r)); draw(); return; }
+      const tr = e.target.closest('tr.click'); if (tr) select(tr.dataset.key);
+    });
+    document.addEventListener('keydown', (e) => { const tr = e.target.closest?.('tr.click'); if (tr && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); select(tr.dataset.key); } });
+    LD.onRedraw(() => { $('#summary').outerHTML = renderSummary(); draw(); });
+  }).catch((err) => {
+    $('#loading').textContent = `The data file could not be loaded (${err.message}). It appears after the next scheduled run; if it persists, check the latest GitHub Actions run.`;
+    $('#stamp').innerHTML = '<strong>Data unavailable</strong>';
+  });
+})();
+</script>
+</body>
+</html>

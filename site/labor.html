@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LEMOINE Construction Labor Dashboard</title>
+<meta name="description" content="Construction jobs, pay, hiring and productivity, nationally and in Baton Rouge. Updated automatically.">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<header class="band">
+  <div class="wrap">
+    <div class="brand">
+      <img src="assets/logo-reversed.svg" alt="LEMOINE" onerror="this.remove()">
+      <h1>Labor &amp; Productivity<small>Jobs, pay and hiring, nationally and in Baton Rouge</small></h1>
+    </div>
+    <div class="stamp" id="stamp"><strong>Loading data…</strong></div>
+  </div>
+</header>
+<nav class="tabs" aria-label="Dashboards">
+  <div class="wrap"><a href="./">Producer Prices</a><a href="escalation.html">Escalation Planner</a><a href="spending.html">Spending &amp; Markets</a><a href="labor.html" aria-current="page">Labor &amp; Productivity</a></div>
+</nav>
+
+<main>
+  <div class="wrap" id="app">
+    <p class="loading" id="loading">Loading the latest BLS data…</p>
+  </div>
+</main>
+
+<footer id="method">
+  <div class="wrap">
+    <h2>Method and sources</h2>
+    <p><b>Jobs</b> are payroll employees in thousands, seasonally adjusted unless noted. <b>Changes</b> for job counts are shown in thousands month over month and in percent year over year; rates change in percentage points.</p>
+    <p><b>Productivity</b>: <span id="m-prod"></span> Productivity here is output per worker on nonresidential building work. It moves with both efficiency and the mix of work, so read it as a trend, not a precise measure.</p>
+    <p>BLS revises the last two months of national jobs data each release and benchmarks annually. Metro and state data come from a smaller survey and are noisier.</p>
+    <p id="m-source"></p>
+    <p class="tagline">LEMOINE &nbsp;|&nbsp; One mission. <span>Yours.™</span></p>
+  </div>
+</footer>
+
+<script src="assets/common.js"></script>
+<script>
+(() => {
+  'use strict';
+  const { $, esc, fmtPct, fmtPts, fmtNum, fmtSigned, fmtMonth, cssVar, spark, tone } = LD;
+  let D, byId, state = { id: 'SMU22129402000000001SA', range: 60 };
+
+  const fmtVal = (s, v) => v == null ? '–' : s.unit === 'jobs' ? fmtNum(v, 1) + 'K' : s.unit === 'usd' ? '$' + v.toFixed(2) : v.toFixed(1) + '%';
+  const fmtChg = (s, v) => v == null ? '–' : s.unit === 'jobs' ? fmtSigned(v, 1) + 'K' : s.unit === 'usd' ? (v >= 0 ? '+$' : '−$') + Math.abs(v).toFixed(2) : fmtPts(v);
+
+  function kpi(cls, eyebrow, val, sub, values) {
+    return `<div class="kpi ${cls}"><span class="eyebrow">${eyebrow}</span><span class="val num">${val}</span><span class="sub">${sub}</span>${values ? spark(values) : ''}</div>`;
+  }
+
+  function renderSummary() {
+    const us = byId.USCONS, nb = byId.CES2023620001, ns = byId.CES2023800201, ahe = byId.CES2000000003, jor = byId.JTS2300JOR, br = byId.SMU22129402000000001SA, P = D.productivity;
+    const nonresJobs = nb && ns ? nb.latest + ns.latest : null;
+    let html = `<section id="summary" aria-labelledby="h-sum"><h2 id="h-sum">Construction labor, ${esc(D.dataMonthLabel)}</h2><p class="lede">Latest month for each series. Sparklines show the last 25 months.</p><div class="kpis">`;
+    if (br) html += kpi('lead', 'Baton Rouge construction jobs', fmtVal(br, br.latest), `${fmtPct(br.yoyPct)} YoY · ${fmtMonth(br.lastMonth)}`, br.history);
+    if (us) html += kpi('', 'U.S. construction jobs', fmtNum(us.latest / 1000, 2) + 'M', `${fmtPct(us.yoyPct)} YoY · ${fmtChg(us, us.momAbs)} MoM`, us.history);
+    if (nonresJobs) html += kpi('', 'U.S. nonres building + trades jobs', fmtNum(nonresJobs / 1000, 2) + 'M', `Building ${fmtPct(nb.yoyPct)}, trades ${fmtPct(ns.yoyPct)} YoY`);
+    if (ahe) html += kpi('', 'Avg hourly earnings, U.S.', fmtVal(ahe, ahe.latest), `${fmtPct(ahe.yoyPct)} YoY`, ahe.history);
+    if (jor) html += kpi('', 'Job openings rate', fmtVal(jor, jor.latest), `${fmtPts(jor.yoyAbs)} vs a year ago · ${fmtMonth(jor.lastMonth)}`, jor.history);
+    html += `</div>`;
+    if (P.jobsYoy != null && P.volumeYoy != null) {
+      html += `<p class="gap-note">Over the past year, nonresidential building jobs changed <b>${fmtPct(P.jobsYoy)}</b> while real nonresidential building volume changed <b>${fmtPct(P.volumeYoy)}</b>, so output per worker moved <b>${fmtPct(P.perWorkerYoy)}</b> (through ${fmtMonth(P.latestMonth)}). ${P.jobsYoy > P.volumeYoy ? 'Headcount is growing faster than real work put in place.' : 'Real work put in place is growing faster than headcount.'}</p>`;
+    }
+    return html + '</section>';
+  }
+
+  function renderProductivity() {
+    return `<section id="prod" aria-labelledby="h-pr"><h2 id="h-pr">Jobs vs volume</h2><p class="lede">Nonresidential building jobs, real nonresidential building spending, and output per worker, each indexed to its 2019 average = 100. Latest output per worker: <b>$${fmtNum(D.productivity.latestPerWorker, 0)}K</b> of work put in place per worker per year, in ${esc(fmtMonth(D.productivity.latestMonth))} dollars.</p>
+      <div class="chartbox"><svg id="pchart" role="img" aria-label="Jobs versus volume chart"></svg><div class="tip" id="ptip"></div><div class="keyline" id="pkey"></div></div></section>`;
+  }
+
+  function drawProd() {
+    const P = D.productivity; const start = Math.max(0, D.months.indexOf('2019-01'));
+    const f = (v) => (v == null ? '–' : v.toFixed(0));
+    LD.lineChart($('#pchart'), {
+      months: D.months.slice(start),
+      lines: [
+        { label: 'Nonres jobs', values: P.jobsIndex.slice(start), color: cssVar('--midblue'), width: 2.2 },
+        { label: 'Real nonres building volume', short: 'Real volume', values: P.volumeIndex.slice(start), color: cssVar('--gold'), width: 2.6 },
+        { label: 'Output per worker', short: 'Per worker', values: P.perWorkerIndex.slice(start), color: cssVar('--ink'), width: 1.6, dash: '5 4' },
+      ],
+      baseline: 100, yFmt: f, tipFmt: (v) => (v == null ? '–' : v.toFixed(1)), keyEl: $('#pkey'), tipEl: $('#ptip'),
+    });
+  }
+
+  function renderTable() {
+    let html = `<section id="table" aria-labelledby="h-tb"><h2 id="h-tb">All labor series</h2><p class="lede">Click a row to chart it below.</p><div class="tablebox"><table class="plain" style="min-width:760px"><thead><tr><th>Series</th><th>Month</th><th>Latest</th><th>MoM change</th><th>YoY change</th><th>YoY %</th></tr></thead><tbody>`;
+    let g = null;
+    for (const s of D.series) {
+      if (s.group !== g) { html += `<tr class="grp"><th colspan="6">${esc(s.group)}</th></tr>`; g = s.group; }
+      html += `<tr class="click${s.id === state.id ? ' sel' : ''}" data-id="${esc(s.id)}" tabindex="0"><td>${esc(s.name)}<span class="sub-id" title="${esc(s.title || '')}">${esc(s.id)}</span></td><td>${LD.fmtMonthShort(s.lastMonth)}</td><td>${fmtVal(s, s.latest)}</td><td class="${tone(s.momAbs)}">${fmtChg(s, s.momAbs)}</td><td class="${tone(s.yoyAbs)}">${fmtChg(s, s.yoyAbs)}</td><td class="${tone(s.yoyPct)}">${fmtPct(s.yoyPct)}</td></tr>`;
+    }
+    return html + `</tbody></table></div></section>`;
+  }
+
+  function renderChartShell() {
+    return `<section id="chart-sec" aria-labelledby="h-ch"><h2 id="h-ch">Trend</h2><p class="lede" id="ch-lede"></p>
+      <div class="toolbar"><div class="seg" role="group" aria-label="Range"><button type="button" data-range="36" aria-pressed="${state.range === 36}">3 yr</button><button type="button" data-range="60" aria-pressed="${state.range === 60}">5 yr</button><button type="button" data-range="0" aria-pressed="${state.range === 0}">All</button></div></div>
+      <div class="chartbox"><svg id="chart" role="img" aria-label="Labor trend chart"></svg><div class="tip" id="tip"></div><div class="keyline" id="keyline"></div></div></section>`;
+  }
+
+  function draw() {
+    const s = byId[state.id];
+    $('#ch-lede').textContent = `${s.name} (${s.id}).`;
+    const start = state.range ? Math.max(0, D.months.length - state.range) : 0;
+    const f = (v) => fmtVal(s, v);
+    LD.lineChart($('#chart'), { months: D.months.slice(start), lines: [{ label: s.name, short: s.name, values: s.history.slice(start), color: cssVar('--gold'), width: 2.6 }], yFmt: f, tipFmt: f, keyEl: $('#keyline'), tipEl: $('#tip') });
+  }
+
+  function select(id) {
+    state.id = id;
+    document.querySelectorAll('tr.click').forEach((r) => r.classList.toggle('sel', r.dataset.id === id));
+    draw();
+  }
+
+  LD.loadJSON('labor.json').then((data) => {
+    D = data; byId = Object.fromEntries(D.series.map((s) => [s.id, s]));
+    if (!byId[state.id]) state.id = D.series[0].id;
+    LD.setStamp(D.dataMonthLabel, D.generatedAt);
+    $('#app').innerHTML = renderSummary() + renderProductivity() + renderTable() + renderChartShell();
+    $('#m-prod').textContent = D.productivity.method;
+    $('#m-source').textContent = `Source: ${D.source} Data checked ${new Date(D.generatedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.${D.failedSeries?.length ? ` Not refreshed on the last run: ${D.failedSeries.join(', ')}.` : ''}`;
+    drawProd(); draw();
+    document.addEventListener('click', (e) => {
+      const r = e.target.closest('[data-range]');
+      if (r) { state.range = +r.dataset.range; r.parentElement.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b === r)); draw(); return; }
+      const tr = e.target.closest('tr.click'); if (tr) select(tr.dataset.id);
+    });
+    document.addEventListener('keydown', (e) => { const tr = e.target.closest?.('tr.click'); if (tr && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); select(tr.dataset.id); } });
+    LD.onRedraw(() => { $('#summary').outerHTML = renderSummary(); drawProd(); draw(); });
+  }).catch((err) => {
+    $('#loading').textContent = `The data file could not be loaded (${err.message}). It appears after the next scheduled run; if it persists, check the latest GitHub Actions run.`;
+    $('#stamp').innerHTML = '<strong>Data unavailable</strong>';
+  });
+})();
+</script>
+</body>
+</html>

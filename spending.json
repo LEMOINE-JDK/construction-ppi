@@ -1,0 +1,19 @@
+{
+  "_readme": "Census construction spending (value put in place) by market, via FRED. saar = seasonally adjusted annual rate ($ millions); nsa = actual monthly dollars, used for year-to-date sums. building = true markets are summed into Nonresidential Buildings and deflated by the deflator series (a PPI selling-price index for new nonresidential buildings).",
+  "historyStart": "2017-01-01",
+  "deflator": "WPU801",
+  "markets": [
+    { "key": "total", "name": "Total Construction", "group": "Totals", "saar": "TTLCONS", "nsa": "TTLCON", "public": "TLPBLCONS", "optional": ["nsa"] },
+    { "key": "nonres", "name": "Total Nonresidential (incl. infrastructure)", "group": "Totals", "saar": "TLNRESCONS", "nsa": "TLNRESCON", "private": "PNRESCONS", "public": "PBNRESCONS" },
+    { "key": "health", "name": "Health Care", "group": "Nonresidential Buildings", "building": true, "saar": "TLHLTHCONS", "nsa": "TLHLTHCON", "private": "PRHLTHCONS", "public": "PBHLTHCONS" },
+    { "key": "edu", "name": "Educational", "group": "Nonresidential Buildings", "building": true, "saar": "TLEDUCONS", "nsa": "TLEDUCON", "private": "PREDUCONS", "public": "PBEDUCONS" },
+    { "key": "office", "name": "Office (incl. data centers)", "group": "Nonresidential Buildings", "building": true, "saar": "TLOFCONS", "nsa": "TLOFCON", "private": "PROFCONS", "public": "PBOFCONS" },
+    { "key": "mfg", "name": "Manufacturing", "group": "Nonresidential Buildings", "building": true, "saar": "TLMFGCONS", "nsa": "TLMFGCON", "private": "PRMFGCONS" },
+    { "key": "safety", "name": "Public Safety", "group": "Nonresidential Buildings", "building": true, "saar": "TLPSCONS", "nsa": "TLPSCON", "public": "PBPSCONS" },
+    { "key": "comm", "name": "Commercial (retail, warehouse)", "group": "Nonresidential Buildings", "building": true, "saar": "TLCOMCONS", "nsa": "TLCOMCON", "private": "PRCOMCONS", "public": "PBCOMCONS" },
+    { "key": "lodging", "name": "Lodging", "group": "Nonresidential Buildings", "building": true, "saar": "TLLODGCONS", "nsa": "TLLODGCON", "private": "PLODGCONS" },
+    { "key": "amuse", "name": "Amusement & Recreation", "group": "Nonresidential Buildings", "building": true, "saar": "TLAMUSCONS", "nsa": "TLAMUSCON", "private": "PRAMUSCONS", "public": "PBAMUSCONS" },
+    { "key": "relig", "name": "Religious", "group": "Nonresidential Buildings", "building": true, "saar": "TLRELCONS", "nsa": "TLRELCON", "private": "PRRELCONS" },
+    { "key": "power", "name": "Power", "group": "Infrastructure", "saar": "TLPWRCONS", "nsa": "TLPWRCON", "private": "PRPWRCONS", "public": "PBPWRCONS" }
+  ]
+}

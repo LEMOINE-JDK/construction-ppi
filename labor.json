@@ -1,0 +1,20 @@
+{
+  "_readme": "Labor series via FRED (BLS CES, JOLTS, state and metro employment). unit: jobs = thousands of employees; usd = dollars per hour; pct = percent. Productivity is computed from Nonresidential Buildings volume (spending.json) and the two nonres job series flagged nonresJobs.",
+  "historyStart": "2017-01-01",
+  "series": [
+    { "id": "USCONS", "name": "All construction", "group": "U.S. jobs", "unit": "jobs" },
+    { "id": "CES2023620001", "name": "Nonresidential building construction", "group": "U.S. jobs", "unit": "jobs", "nonresJobs": true },
+    { "id": "CES2023800201", "name": "Nonresidential specialty trade contractors", "group": "U.S. jobs", "unit": "jobs", "nonresJobs": true },
+    { "id": "CES2023700001", "name": "Heavy & civil engineering construction", "group": "U.S. jobs", "unit": "jobs" },
+    { "id": "CES2000000003", "name": "Average hourly earnings, construction", "group": "U.S. pay & hiring", "unit": "usd" },
+    { "id": "JTS2300JOL", "name": "Job openings, construction", "group": "U.S. pay & hiring", "unit": "jobs" },
+    { "id": "JTS2300JOR", "name": "Job openings rate, construction", "group": "U.S. pay & hiring", "unit": "pct" },
+    { "id": "JTS2300QUR", "name": "Quits rate, construction", "group": "U.S. pay & hiring", "unit": "pct" },
+    { "id": "LNU04032231", "name": "Unemployment rate, construction (not seasonally adjusted)", "group": "U.S. pay & hiring", "unit": "pct", "nsa": true },
+    { "id": "LACONS", "name": "All construction, Louisiana", "group": "Louisiana & Baton Rouge", "unit": "jobs" },
+    { "id": "SMU22129402000000001SA", "name": "All construction, Baton Rouge MSA", "group": "Louisiana & Baton Rouge", "unit": "jobs" },
+    { "id": "SMU22129402023620001SA", "name": "Nonresidential building construction, Baton Rouge MSA", "group": "Louisiana & Baton Rouge", "unit": "jobs" },
+    { "id": "SMU22129402023800001SA", "name": "Specialty trade contractors, Baton Rouge MSA", "group": "Louisiana & Baton Rouge", "unit": "jobs" },
+    { "id": "SMU22000002000000003", "name": "Average hourly earnings, construction, Louisiana (not seasonally adjusted)", "group": "Louisiana & Baton Rouge", "unit": "usd", "nsa": true }
+  ]
+}

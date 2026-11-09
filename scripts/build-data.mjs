@@ -1,11 +1,18 @@
-// Pulls every series in series.json from the FRED API and writes site/data.json.
-// Requires Node 20+ (built-in fetch) and the FRED_API_KEY environment variable. No npm packages.
+// Pulls every series used by the site from the FRED API and writes the page data files:
+//   site/data.json      PPI (series.json)
+//   site/spending.json  Census construction spending (spending.json)
+//   site/labor.json     Labor and productivity (labor.json)
+// Requires Node 20+ (built-in fetch) and FRED_API_KEY. No npm packages.
+// A dataset with too many failed series is skipped (its published file stays as-is) and the run exits non-zero,
+// so GitHub emails the owner; the other datasets still publish.
 import { readFile, writeFile } from 'node:fs/promises';
 import { computeDashboard } from './compute.mjs';
+import { computeSpending } from './compute-spending.mjs';
+import { computeLabor } from './compute-labor.mjs';
 
 const ROOT = new URL('..', import.meta.url);
 const KEY = process.env.FRED_API_KEY;
-const MAX_FAILURES = 3; // above this, stop and keep the published data as-is
+const MAX_FAILURES = 3;
 
 if (!KEY) {
   console.error('FRED_API_KEY is not set. Add it as a repository secret (Settings > Secrets and variables > Actions).');
@@ -13,6 +20,8 @@ if (!KEY) {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const readJson = async (p) => JSON.parse(await readFile(new URL(p, ROOT), 'utf8'));
+const readPrev = async (p) => { try { return await readJson(p); } catch { return null; } };
 
 async function fred(path, params) {
   const url = new URL(`https://api.stlouisfed.org/fred/${path}`);
@@ -23,66 +32,75 @@ async function fred(path, params) {
       const res = await fetch(url, { headers: { 'User-Agent': 'construction-ppi-dashboard' } });
       if (res.ok) return await res.json();
       lastErr = new Error(`HTTP ${res.status}`);
-      if (res.status === 400 || res.status === 404) break; // bad series id: retrying won't help
-    } catch (e) {
-      lastErr = e;
-    }
+      if (res.status === 400 || res.status === 404) break;
+    } catch (e) { lastErr = e; }
     await sleep(1500 * attempt);
   }
   throw lastErr;
 }
 
-async function loadPrevious() {
-  try {
-    return JSON.parse(await readFile(new URL('site/data.json', ROOT), 'utf8'));
-  } catch {
-    return null;
-  }
-}
-
-const config = JSON.parse(await readFile(new URL('series.json', ROOT), 'utf8'));
-const previous = await loadPrevious();
 const levels = {};
 const titles = {};
-const failures = [];
+const failed = new Set();
 
-for (const s of config.series) {
+async function pull(id, start, withTitle) {
+  if (levels[id] || failed.has(id)) return;
   try {
-    const [obs, meta] = await Promise.all([
-      fred('series/observations', { series_id: s.id, observation_start: config.historyStart }),
-      fred('series', { series_id: s.id }),
-    ]);
-    levels[s.id] = obs.observations
-      .filter((o) => o.value !== '.' && o.value !== '')
-      .map((o) => [o.date.slice(0, 7), Number(o.value)]);
-    titles[s.id] = meta.seriess?.[0]?.title ?? null;
+    const obs = await fred('series/observations', { series_id: id, observation_start: start });
+    levels[id] = obs.observations.filter((o) => o.value !== '.' && o.value !== '').map((o) => [o.date.slice(0, 7), Number(o.value)]);
+    if (withTitle) titles[id] = (await fred('series', { series_id: id })).seriess?.[0]?.title ?? null;
   } catch (e) {
-    failures.push(`${s.id}: ${e.message}`);
-    // Fall back to last published history so one bad pull doesn't blank a row.
-    const prev = previous?.series.find((p) => p.id === s.id);
-    if (prev) {
-      levels[s.id] = previous.months.map((m, i) => [m, prev.history[i]]).filter(([, v]) => v != null);
-      titles[s.id] = prev.title;
-    }
+    failed.add(id);
+    console.warn(`  ${id}: ${e.message}`);
   }
-  await sleep(600); // stay well under FRED's 120 requests/minute
+  await sleep(450); // stay well under FRED's 120 requests/minute
 }
 
-if (failures.length) console.warn(`Series that failed to update:\n  ${failures.join('\n  ')}`);
-if (failures.length > MAX_FAILURES) {
-  console.error(`${failures.length} series failed. Keeping the published data unchanged.`);
-  process.exit(1);
-}
+const ppiCfg = await readJson('series.json');
+const spCfg = await readJson('spending.json');
+const lbCfg = await readJson('labor.json');
+const prev = { ppi: await readPrev('site/data.json'), spending: await readPrev('site/spending.json'), labor: await readPrev('site/labor.json') };
 
-const data = computeDashboard(config, levels, titles, new Date().toISOString());
-data.failedSeries = failures.map((f) => f.split(':')[0]);
+for (const s of ppiCfg.series) await pull(s.id, ppiCfg.historyStart, true);
+const spIds = [...new Set(spCfg.markets.flatMap((m) => [m.saar, m.nsa, m.private, m.public]).filter(Boolean)), spCfg.deflator];
+for (const id of spIds) await pull(id, spCfg.historyStart, false);
+for (const s of lbCfg.series) await pull(s.id, lbCfg.historyStart, true);
 
-// Only rewrite data.json when the numbers changed, so the history shows real data updates.
+const optional = new Set(spCfg.markets.flatMap((m) => (m.optional || []).map((k) => m[k])));
+const failedIn = (ids) => ids.filter((id) => failed.has(id) && !optional.has(id));
+let skipped = 0;
 const strip = (d) => d && JSON.stringify({ ...d, generatedAt: null });
-if (strip(previous) === strip(data)) {
-  console.log(`No new data. Latest month is still ${data.dataMonthLabel}.`);
-} else {
-  await writeFile(new URL('site/data.json', ROOT), JSON.stringify(data));
-  console.log(`Updated data.json. Latest month: ${data.dataMonthLabel}.`);
+const now = new Date().toISOString();
+
+async function publish(name, file, ids, build) {
+  const bad = failedIn(ids);
+  if (bad.length > MAX_FAILURES) {
+    console.error(`${name}: ${bad.length} series failed (${bad.join(', ')}). Keeping the published ${file} unchanged.`);
+    skipped++;
+    return null;
+  }
+  const data = build();
+  data.failedSeries = bad;
+  if (strip(prev[name]) === strip(data)) console.log(`${name}: no new data (${data.dataMonthLabel}).`);
+  else { await writeFile(new URL(file, ROOT), JSON.stringify(data)); console.log(`${name}: updated ${file}, latest ${data.dataMonthLabel}.`); }
+  return data;
 }
-await writeFile(new URL('last-checked.txt', ROOT), `${new Date().toISOString()}\n`);
+
+// PPI: fall back to last published history for a failed series so one bad pull doesn't blank a row.
+for (const s of ppiCfg.series) {
+  if (!levels[s.id] && prev.ppi) {
+    const p = prev.ppi.series.find((x) => x.id === s.id);
+    if (p) { levels[s.id] = prev.ppi.months.map((m, i) => [m, p.history[i]]).filter(([, v]) => v != null); titles[s.id] = p.title; }
+  }
+}
+await publish('ppi', 'site/data.json', ppiCfg.series.map((s) => s.id), () => computeDashboard(ppiCfg, levels, titles, now));
+const spending = await publish('spending', 'site/spending.json', spIds, () => computeSpending(spCfg, levels, now));
+await publish('labor', 'site/labor.json', lbCfg.series.map((s) => s.id), () => {
+  const d = computeLabor(lbCfg, levels, spending ?? prev.spending, now);
+  d.series.forEach((s) => { s.title = titles[s.id] ?? null; });
+  return d;
+});
+
+await writeFile(new URL('last-checked.txt', ROOT), `${now}\n`);
+if (failed.size) console.warn(`Series that failed this run: ${[...failed].join(', ')}`);
+if (skipped) process.exit(1);

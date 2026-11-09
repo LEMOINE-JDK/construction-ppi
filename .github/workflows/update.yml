@@ -7,7 +7,7 @@ on:
   workflow_dispatch: {}
   push:
     branches: [main]
-    paths: ['site/**', 'scripts/**', 'series.json', '.github/workflows/**']
+    paths: ['site/**', 'scripts/**', 'series.json', 'spending.json', 'labor.json', '.github/workflows/update.yml']
 
 permissions:
   contents: write
@@ -36,10 +36,11 @@ jobs:
       # Commits every run: new data when BLS publishes, otherwise just last-checked.txt.
       # The commit also keeps GitHub from disabling this schedule after 60 days of inactivity.
       - name: Commit results
+        if: always()
         run: |
           git config user.name "ppi-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add site/data.json last-checked.txt
+          for f in site/data.json site/spending.json site/labor.json last-checked.txt; do [ -f "$f" ] && git add "$f"; done
           if git diff --cached --quiet; then
             echo "Nothing to commit."
           else
@@ -48,13 +49,16 @@ jobs:
           fi
 
       - uses: actions/configure-pages@v5
+        if: always()
 
       - uses: actions/upload-pages-artifact@v3
+        if: always()
         with:
           path: site
 
   deploy:
     needs: update
+    if: always()
     runs-on: ubuntu-latest
     environment:
       name: github-pages
