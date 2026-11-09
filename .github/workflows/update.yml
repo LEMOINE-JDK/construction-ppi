@@ -1,0 +1,64 @@
+name: Update PPI data and publish
+
+on:
+  schedule:
+    # Mondays and Thursdays, 15:17 UTC (9:17 or 10:17 Central). BLS posts PPI mid-month around 7:30 Central.
+    - cron: '17 15 * * 1,4'
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths: ['site/**', 'scripts/**', 'series.json', '.github/workflows/**']
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: ppi-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Pull FRED data and compute
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: node scripts/build-data.mjs
+
+      # Commits every run: new data when BLS publishes, otherwise just last-checked.txt.
+      # The commit also keeps GitHub from disabling this schedule after 60 days of inactivity.
+      - name: Commit results
+        run: |
+          git config user.name "ppi-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/data.json last-checked.txt
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+          else
+            git commit -m "Data check $(date -u +%Y-%m-%d)"
+            git push
+          fi
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: update
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

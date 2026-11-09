@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LEMOINE Construction PPI Dashboard</title>
+<meta name="description" content="Producer Price Index tracking for construction materials, building types and trade contractors. Updated automatically from FRED.">
+<style>
+/* Layout: black brand band, then a summary row, then the heatmap as the core table, then tools (trend, movers, escalation). */
+:root {
+  --yellow: #FFC836;
+  --gold: #D19000;
+  --navy: #003B5E;
+  --midblue: #5B809F;
+  --ltblue: #A6BCD6;
+  --ink: #111214;
+  --ink-2: #4a5058;
+  --ink-3: #7a8089;
+  --paper: #ffffff;
+  --paper-2: #f5f6f4;
+  --rule: #e2e4e1;
+  --band: #000000;
+  --band-ink: #ffffff;
+  --cell-0: #f1f2ef;
+  --up-1: #fff1c9;
+  --up-2: #FFC836;
+  --up-3: #D19000;
+  --up-4: #000000;
+  --up-4-ink: #FFC836;
+  --dn-1: #dfe7f0;
+  --dn-2: #A6BCD6;
+  --dn-3: #5B809F;
+  --focus: #003B5E;
+  --font: Aptos, "Segoe UI", Arial, Helvetica, sans-serif;
+  --mono: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #eceeea;
+    --ink-2: #b4b9bf;
+    --ink-3: #8a9097;
+    --paper: #121314;
+    --paper-2: #1b1d1f;
+    --rule: #2c2f33;
+    --band: #000000;
+    --cell-0: #222528;
+    --up-1: #4a3d14;
+    --up-2: #a37a10;
+    --up-3: #D19000;
+    --up-4: #FFC836;
+    --up-4-ink: #000000;
+    --dn-1: #1f2d3a;
+    --dn-2: #33536f;
+    --dn-3: #5B809F;
+    --focus: #A6BCD6;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--paper); color: var(--ink); font: 15px/1.5 var(--font); -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* Brand band */
+header.band { background: var(--band); color: var(--band-ink); border-bottom: 5px solid var(--yellow); }
+header .wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding-block: 18px; }
+.brand { display: flex; align-items: center; gap: 20px; min-width: 0; }
+.brand img { height: 34px; width: auto; display: block; }
+.brand h1 { margin: 0; font-size: 1.15rem; font-weight: 600; letter-spacing: .01em; }
+.brand h1 small { display: block; font-size: .78rem; font-weight: 400; color: #c9ccd0; letter-spacing: .02em; }
+.stamp { text-align: right; font-size: .82rem; color: #c9ccd0; }
+.stamp strong { display: block; color: var(--yellow); font-size: 1rem; font-weight: 600; }
+
+nav.jump { border-bottom: 1px solid var(--rule); background: var(--paper); }
+nav.jump .wrap { display: flex; gap: 4px 20px; flex-wrap: wrap; padding-block: 10px; font-size: .85rem; }
+nav.jump a { text-decoration: none; color: var(--ink-2); padding: 2px 0; border-bottom: 2px solid transparent; }
+nav.jump a:hover { color: var(--ink); border-bottom-color: var(--yellow); }
+
+main .wrap { display: grid; gap: 40px; padding-block: 28px 56px; }
+section > h2 { font-size: 1.2rem; margin: 0 0 4px; text-wrap: balance; }
+.lede { margin: 0 0 16px; color: var(--ink-2); font-size: .9rem; max-width: 72ch; }
+.eyebrow { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); font-weight: 600; }
+
+/* KPI row */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.kpi { border: 1px solid var(--rule); border-top: 4px solid var(--ink); padding: 14px 16px 12px; display: grid; gap: 4px; background: var(--paper); min-width: 0; }
+.kpi.lead { border-top-color: var(--yellow); }
+.kpi .val { font-size: 2rem; font-weight: 700; line-height: 1.1; }
+.kpi .sub { font-size: .8rem; color: var(--ink-2); }
+.kpi svg { width: 100%; height: 34px; display: block; margin-top: 4px; }
+.gap-note { margin-top: 14px; padding: 12px 16px; background: var(--paper-2); border-left: 4px solid var(--gold); font-size: .9rem; }
+.gap-note b { font-variant-numeric: tabular-nums; }
+
+/* Heatmap tables */
+.tablebox { overflow-x: auto; border: 1px solid var(--rule); }
+table.heat { border-collapse: collapse; width: 100%; min-width: 820px; font-size: .86rem; }
+.heat th, .heat td { padding: 7px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--rule); }
+.heat thead th { position: sticky; top: 0; background: var(--paper); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); font-weight: 600; vertical-align: bottom; }
+.heat thead th.cur { color: var(--ink); }
+.heat th:first-child, .heat td:first-child { text-align: left; position: sticky; left: 0; background: var(--paper); z-index: 1; }
+.heat tr.grp th { text-align: left; background: var(--paper-2); font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-2); padding-top: 12px; }
+.heat tbody tr.row { cursor: pointer; }
+.heat tbody tr.row:hover td:first-child, .heat tbody tr.row.sel td:first-child { box-shadow: inset 4px 0 0 var(--yellow); }
+.heat td.cell { font-variant-numeric: tabular-nums; min-width: 68px; }
+.heat td.cell.latest { font-weight: 700; }
+.heat td.mom { color: var(--ink-2); font-variant-numeric: tabular-nums; font-size: .8rem; }
+.heat tr.avg td { font-weight: 700; border-top: 2px solid var(--ink); }
+.nm { display: flex; flex-direction: column; }
+.nm .t { font-weight: 600; }
+.nm .id { font-family: var(--mono); font-size: .7rem; color: var(--ink-3); text-decoration: none; }
+.nm .id:hover { text-decoration: underline; }
+.flag { display: inline-block; margin-left: 6px; font-size: .66rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 1px 6px; border: 1px solid currentColor; color: var(--gold); vertical-align: 1px; }
+.flag.info { color: var(--midblue); }
+.c-0 { background: var(--cell-0); }
+.c-u1 { background: var(--up-1); }
+.c-u2 { background: var(--up-2); color: #000; }
+.c-u3 { background: var(--up-3); color: #000; }
+.c-u4 { background: var(--up-4); color: var(--up-4-ink); }
+.c-d1 { background: var(--dn-1); }
+.c-d2 { background: var(--dn-2); color: #000; }
+.c-d3 { background: var(--dn-3); color: #fff; }
+.c-na { color: var(--ink-3); }
+.legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-top: 10px; font-size: .78rem; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 14px; height: 14px; display: inline-block; border: 1px solid var(--rule); }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 10px; font-size: .85rem; }
+
+/* Controls */
+.seg { display: inline-flex; border: 1px solid var(--ink); }
+.seg button { font: inherit; font-size: .8rem; padding: 5px 12px; border: 0; background: var(--paper); color: var(--ink); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+select, input[type="text"] { font: inherit; font-size: .88rem; padding: 6px 8px; border: 1px solid var(--ink-3); background: var(--paper); color: var(--ink); max-width: 100%; }
+label.f { display: grid; gap: 4px; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); font-weight: 600; min-width: 0; }
+
+/* Trend chart */
+.chartbox { border: 1px solid var(--rule); padding: 12px; position: relative; }
+#trend { width: 100%; height: 340px; display: block; }
+.tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--paper); font-size: .78rem; padding: 6px 8px; white-space: nowrap; display: none; }
+.keyline { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: .8rem; color: var(--ink-2); margin-top: 6px; }
+.keyline i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 6px; }
+
+/* Movers */
+.movers { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+.mv h3 { font-size: .95rem; margin: 0 0 8px; }
+.bar { display: grid; grid-template-columns: minmax(0, 150px) 1fr 64px; align-items: center; gap: 10px; font-size: .85rem; padding: 4px 0; cursor: pointer; }
+.bar .track { height: 14px; background: var(--paper-2); position: relative; }
+.bar .fill { position: absolute; top: 0; bottom: 0; left: 0; }
+.bar .v { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.bar .lab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Escalation */
+.calc { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; align-items: end; }
+.calc-out { margin-top: 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.calc-out div { background: var(--paper-2); padding: 12px 14px; display: grid; gap: 2px; }
+.calc-out b { font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+.calc-out .hero { background: var(--ink); color: var(--paper); }
+.calc-out .hero .eyebrow { color: var(--yellow); }
+
+/* Footer */
+footer { border-top: 5px solid var(--yellow); background: var(--band); color: #c9ccd0; font-size: .82rem; }
+footer .wrap { padding-block: 28px; display: grid; gap: 14px; }
+footer h2 { color: #fff; font-size: .95rem; margin: 0; }
+footer dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
+footer dt { color: #fff; font-weight: 600; }
+footer dd { margin: 0; }
+footer p { margin: 0; max-width: 90ch; }
+.tagline { color: #fff; }
+.tagline span { color: var(--yellow); }
+
+.loading { padding: 40px 0; color: var(--ink-2); }
+@media (max-width: 640px) {
+  .kpi .val { font-size: 1.6rem; }
+  .stamp { text-align: left; }
+  footer dl { grid-template-columns: 1fr; }
+  #trend { height: 260px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="band">
+  <div class="wrap">
+    <div class="brand">
+      <img src="assets/logo-reversed.svg" alt="LEMOINE" onerror="this.remove()">
+      <h1>Construction PPI Dashboard<small>Producer prices for materials, building types and trades</small></h1>
+    </div>
+    <div class="stamp" id="stamp"><strong>Loading data…</strong></div>
+  </div>
+</header>
+<nav class="jump" aria-label="Sections">
+  <div class="wrap">
+    <a href="#summary">Summary</a><a href="#materials">Materials</a><a href="#buildings">Building types &amp; trades</a><a href="#trend-sec">Trend</a><a href="#movers">Top movers</a><a href="#escalation">Escalation calculator</a><a href="#method">Method</a>
+  </div>
+</nav>
+
+<main>
+  <div class="wrap" id="app">
+    <p class="loading" id="loading">Loading the latest FRED data…</p>
+  </div>
+</main>
+
+<footer id="method">
+  <div class="wrap">
+    <h2>Method and sources</h2>
+    <p id="m-method"></p>
+    <dl id="m-cols"></dl>
+    <p><b>Flags.</b> <span class="flag">No new price</span> marks a series whose index has been identical for 3 or more months, which usually means BLS carried a value forward rather than prices holding flat. <span class="flag info">Note</span> marks a series with a data caveat; hover for details.</p>
+    <p><b>Material inputs</b> measure what contractors pay. <b>Building types</b> and <b>trade contractors</b> measure what contractors charge for the finished work. When inputs rise faster than building prices, contractor margins are being squeezed.</p>
+    <p id="m-source"></p>
+    <p>Table layout adapted from Ed Zarenski's PPI tables at edzarenski.com. This dashboard is for internal planning and is not a forecast.</p>
+    <p class="tagline">LEMOINE &nbsp;|&nbsp; One mission. <span>Yours.™</span></p>
+  </div>
+</footer>
+
+<script>
+(() => {
+  'use strict';
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const $ = (s, el = document) => el.querySelector(s);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fmtPct = (v, d = 1) => v == null ? '–' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(d) + '%';
+  const fmtIdx = (v) => v == null ? '–' : v.toFixed(1);
+  const fmtMonth = (ym) => ym ? `${MON[+ym.slice(5, 7) - 1]} ${ym.slice(0, 4)}` : '–';
+  const fmtMoney = (v) => v.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+  const cellClass = (v) => v == null ? 'c-na' : v >= 20 ? 'c-u4' : v >= 10 ? 'c-u3' : v >= 5 ? 'c-u2' : v >= 2 ? 'c-u1' : v > -2 ? 'c-0' : v > -5 ? 'c-d1' : v > -10 ? 'c-d2' : 'c-d3';
+  const fredUrl = (id) => `https://fred.stlouisfed.org/series/${encodeURIComponent(id)}`;
+  const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  let D, byId, state = { sort: 'group', a: 'WPUIP231200', b: '', mode: 'yoy', range: 60 };
+
+  async function load() {
+    if (window.__DATA) return window.__DATA;
+    const res = await fetch('data.json', { cache: 'no-cache' });
+    if (!res.ok) throw new Error(`data.json returned ${res.status}`);
+    return res.json();
+  }
+
+  function yoySeries(s) {
+    return s.history.map((v, i) => (i >= 12 && v != null && s.history[i - 12] != null) ? Math.round((v / s.history[i - 12] - 1) * 1000) / 10 : null);
+  }
+
+  function spark(s, n = 25) {
+    const h = s.history.slice(-n);
+    const pts = h.map((v, i) => [i, v]).filter(([, v]) => v != null);
+    if (pts.length < 2) return '';
+    const vs = pts.map((p) => p[1]); const lo = Math.min(...vs), hi = Math.max(...vs); const span = hi - lo || 1;
+    const W = 200, H = 34;
+    const d = pts.map(([i, v], k) => `${k ? 'L' : 'M'}${(i / (n - 1) * W).toFixed(1)},${(H - 3 - (v - lo) / span * (H - 6)).toFixed(1)}`).join('');
+    const [li, lv] = pts[pts.length - 1];
+    return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" fill="none" stroke="${cssVar('--ink-3')}" stroke-width="1.5" vector-effect="non-scaling-stroke"/><circle cx="${(li / (n - 1) * W).toFixed(1)}" cy="${(H - 3 - (lv - lo) / span * (H - 6)).toFixed(1)}" r="3" fill="${cssVar('--gold')}"/></svg>`;
+  }
+
+  function flags(s) {
+    let f = '';
+    if (s.staleSince) f += `<span class="flag" title="Index unchanged since ${fmtMonth(s.staleSince)}">No new price</span>`;
+    if (s.note) f += `<span class="flag info" title="${esc(s.note)}">Note</span>`;
+    if (s.volatile) f += `<span class="flag info" title="Swings sharply from month to month. Read with care.">Volatile</span>`;
+    return f;
+  }
+
+  function renderSummary() {
+    const S = D.summary;
+    const lead = byId.WPUIP231200, bldg = byId.WPU801, diesel = byId.WPU057303;
+    const tile = (cls, eyebrow, val, sub, s) => `<div class="kpi ${cls}"><span class="eyebrow">${eyebrow}</span><span class="val num">${val}</span><span class="sub">${sub}</span>${s ? spark(s) : ''}</div>`;
+    let html = `<section id="summary" aria-labelledby="h-sum"><h2 id="h-sum">Where prices stand, ${esc(D.dataMonthLabel)}</h2><p class="lede">Year-over-year change for the latest reported month. Sparklines show the last 25 months of the index.</p><div class="kpis">`;
+    if (lead) html += tile('lead', 'Nonres construction inputs', fmtPct(lead.cols.latest), `${fmtPct(lead.mom)} vs prior month`, lead);
+    html += tile('', `Median of ${S.materialCount} materials`, fmtPct(S.medianLatest), `${S.up} up, ${S.down} down year over year`);
+    if (bldg) html += tile('', 'Nonres building prices', fmtPct(bldg.cols.latest), 'What contractors charge (bid prices)', bldg);
+    if (D.tradeAvg) html += tile('', 'Avg of 4 trade contractors', fmtPct(D.tradeAvg.latest), 'Concrete, roofing, electrical, mech/plumbing');
+    if (diesel) html += tile('', 'No. 2 diesel fuel', fmtPct(diesel.cols.latest), 'Volatile; reported separately', diesel);
+    html += `</div>`;
+    if (lead && bldg && lead.cols.latest != null && bldg.cols.latest != null) {
+      const gap = Math.round((lead.cols.latest - bldg.cols.latest) * 10) / 10;
+      html += `<p class="gap-note">Input costs are ${gap >= 0 ? 'outpacing' : 'trailing'} building prices by <b>${Math.abs(gap).toFixed(1)} points</b> year over year (inputs ${fmtPct(lead.cols.latest)} vs buildings ${fmtPct(bldg.cols.latest)}). ${gap >= 2 ? 'That gap is margin pressure on fixed-price and GMax work.' : gap <= -2 ? 'Contractor pricing is running ahead of input costs.' : 'The two are moving roughly together.'}</p>`;
+    }
+    return html + `</section>`;
+  }
+
+  function heatRows(list, opts = {}) {
+    const cols = D.columns;
+    let html = '', lastGroup = null;
+    for (const s of list) {
+      if (opts.groups && s.group !== lastGroup) { html += `<tr class="grp"><th colspan="${cols.length + 2}">${esc(s.group)}</th></tr>`; lastGroup = s.group; }
+      html += `<tr class="row${state.a === s.id ? ' sel' : ''}" data-id="${esc(s.id)}" tabindex="0" title="Show ${esc(s.name)} in the trend chart"><td><span class="nm"><span class="t">${esc(s.name)}${flags(s)}</span><a class="id" href="${fredUrl(s.id)}" target="_blank" rel="noopener" title="${esc(s.title || 'View on FRED')}">${esc(s.id)}</a></span></td>`;
+      for (const c of cols) { const v = s.cols[c.key]; html += `<td class="cell ${cellClass(v)}${c.key === 'latest' ? ' latest' : ''}">${fmtPct(v)}</td>`; }
+      html += `<td class="mom">${fmtPct(s.mom)}</td></tr>`;
+    }
+    return html;
+  }
+
+  function heatHead() {
+    return `<thead><tr><th scope="col">Series</th>${D.columns.map((c) => `<th scope="col" class="${c.group === 'Current' ? 'cur' : ''}" title="${esc(c.desc)}">${esc(c.label)}</th>`).join('')}<th scope="col" title="Latest month vs prior month">MoM</th></tr></thead>`;
+  }
+
+  const legend = () => `<div class="legend" aria-label="Color key"><span><i class="c-d3"></i>−10% or less</span><span><i class="c-d2"></i>−5 to −10</span><span><i class="c-d1"></i>−2 to −5</span><span><i class="c-0"></i>±2</span><span><i class="c-u1"></i>+2 to +5</span><span><i class="c-u2"></i>+5 to +10</span><span><i class="c-u3"></i>+10 to +20</span><span><i class="c-u4"></i>+20% or more</span></div>`;
+
+  function renderMaterials() {
+    let list = D.series.filter((s) => s.kind === 'material');
+    if (state.sort === 'latest') list = [...list].sort((a, b) => (b.cols.latest ?? -999) - (a.cols.latest ?? -999));
+    return `<section id="materials" aria-labelledby="h-mat"><h2 id="h-mat">Material input costs</h2><p class="lede">Percent change in the average index level for each period. Annual columns compare full-year averages; the current columns compare the same months a year earlier. Click a row to chart it.</p>
+      <div class="toolbar"><span class="eyebrow">Order</span><div class="seg" role="group" aria-label="Row order"><button type="button" data-sort="group" aria-pressed="${state.sort === 'group'}">By group</button><button type="button" data-sort="latest" aria-pressed="${state.sort === 'latest'}">By latest change</button></div></div>
+      <div class="tablebox"><table class="heat" id="t-mat">${heatHead()}<tbody>${heatRows(list, { groups: state.sort === 'group' })}</tbody></table></div>${legend()}</section>`;
+  }
+
+  function renderBuildings() {
+    const b = D.series.filter((s) => s.kind === 'building');
+    const t = D.series.filter((s) => s.kind === 'trade');
+    let avgRow = '';
+    if (D.tradeAvg) avgRow = `<tr class="avg"><td>Average of 4 trades</td>${D.columns.map((c) => `<td class="cell ${cellClass(D.tradeAvg[c.key])}${c.key === 'latest' ? ' latest' : ''}">${fmtPct(D.tradeAvg[c.key])}</td>`).join('')}<td></td></tr>`;
+    return `<section id="buildings" aria-labelledby="h-bld"><h2 id="h-bld">Building types and trade contractors</h2><p class="lede">Prices contractors charge for new nonresidential work, by building type and by trade. Compare these with the material inputs above to see whether costs are being passed through.</p>
+      <div class="tablebox"><table class="heat" id="t-bld">${heatHead()}<tbody>${heatRows(b, { groups: true })}${heatRows(t, { groups: true })}${avgRow}</tbody></table></div></section>`;
+  }
+
+  function seriesOptions(selected, allowNone) {
+    const groups = {};
+    for (const s of D.series) (groups[s.group] ||= []).push(s);
+    let o = allowNone ? `<option value="">None</option>` : '';
+    for (const [g, list] of Object.entries(groups)) o += `<optgroup label="${esc(g)}">${list.map((s) => `<option value="${esc(s.id)}"${s.id === selected ? ' selected' : ''}>${esc(s.name)}</option>`).join('')}</optgroup>`;
+    return o;
+  }
+
+  function renderTrendShell() {
+    return `<section id="trend-sec" aria-labelledby="h-tr"><h2 id="h-tr">Trend</h2><p class="lede">Year-over-year change or raw index level for one series, with an optional comparison.</p>
+      <div class="toolbar">
+        <label class="f">Series<select id="sel-a">${seriesOptions(state.a)}</select></label>
+        <label class="f">Compare with<select id="sel-b">${seriesOptions(state.b, true)}</select></label>
+        <div class="seg" role="group" aria-label="Measure"><button type="button" data-mode="yoy" aria-pressed="${state.mode === 'yoy'}">YoY %</button><button type="button" data-mode="index" aria-pressed="${state.mode === 'index'}">Index</button></div>
+        <div class="seg" role="group" aria-label="Range"><button type="button" data-range="36" aria-pressed="${state.range === 36}">3 yr</button><button type="button" data-range="60" aria-pressed="${state.range === 60}">5 yr</button><button type="button" data-range="0" aria-pressed="${state.range === 0}">All</button></div>
+      </div>
+      <div class="chartbox"><svg id="trend" role="img" aria-label="Trend chart"></svg><div class="tip" id="tip"></div><div class="keyline" id="keyline"></div></div></section>`;
+  }
+
+  function niceTicks(lo, hi, n = 5) {
+    const span = hi - lo || 1; const raw = span / n; const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => span / s <= n) || 10 * mag;
+    const t0 = Math.floor(lo / step) * step, t1 = Math.ceil(hi / step) * step; const ticks = [];
+    for (let v = t0; v <= t1 + step / 2; v += step) ticks.push(Math.round(v * 1e6) / 1e6);
+    return ticks;
+  }
+
+  function drawTrend() {
+    const svg = $('#trend'); if (!svg) return;
+    const W = svg.clientWidth || 800, H = svg.clientHeight || 340;
+    const m = { l: 52, r: 14, t: 12, b: 28 };
+    const all = D.months; const start = state.range ? Math.max(0, all.length - state.range) : 0;
+    const months = all.slice(start);
+    const pick = (id) => { const s = byId[id]; if (!s) return null; const arr = (state.mode === 'yoy' ? yoySeries(s) : s.history).slice(start); return { s, arr }; };
+    const lines = [pick(state.a), state.b ? pick(state.b) : null].filter(Boolean);
+    const vals = lines.flatMap((l) => l.arr).filter((v) => v != null);
+    if (!vals.length) { svg.innerHTML = ''; return; }
+    let lo = Math.min(...vals), hi = Math.max(...vals);
+    if (state.mode === 'yoy') { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
+    const ticks = niceTicks(lo, hi); lo = ticks[0]; hi = ticks[ticks.length - 1];
+    const x = (i) => m.l + (months.length > 1 ? i / (months.length - 1) : 0) * (W - m.l - m.r);
+    const y = (v) => m.t + (1 - (v - lo) / (hi - lo || 1)) * (H - m.t - m.b);
+    const ink2 = cssVar('--ink-2'), rule = cssVar('--rule'), ink = cssVar('--ink');
+    const colors = [cssVar('--gold'), cssVar('--midblue')];
+    let g = `<rect x="0" y="0" width="${W}" height="${H}" fill="transparent"/>`;
+    for (const t of ticks) g += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(t)}" y2="${y(t)}" stroke="${t === 0 && state.mode === 'yoy' ? ink : rule}" stroke-width="${t === 0 && state.mode === 'yoy' ? 1.2 : 1}"/><text x="${m.l - 8}" y="${y(t) + 4}" text-anchor="end" font-size="11" fill="${ink2}">${state.mode === 'yoy' ? t + '%' : t}</text>`;
+    months.forEach((mm, i) => { if (mm.endsWith('-01')) g += `<line x1="${x(i)}" x2="${x(i)}" y1="${H - m.b}" y2="${H - m.b + 4}" stroke="${ink2}"/><text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-size="11" fill="${ink2}">${mm.slice(0, 4)}</text>`; });
+    lines.forEach((l, k) => {
+      let d = '', pen = false;
+      l.arr.forEach((v, i) => { if (v == null) { pen = false; return; } d += `${pen ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`; pen = true; });
+      g += `<path d="${d}" fill="none" stroke="${colors[k]}" stroke-width="${k ? 2 : 2.5}" stroke-linejoin="round"/>`;
+      const li = l.arr.length - 1; if (l.arr[li] != null) g += `<circle cx="${x(li)}" cy="${y(l.arr[li])}" r="4" fill="${colors[k]}"/>`;
+    });
+    g += `<line id="xh" x1="0" x2="0" y1="${m.t}" y2="${H - m.b}" stroke="${ink2}" stroke-dasharray="3 3" visibility="hidden"/>`;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.innerHTML = g;
+    $('#keyline').innerHTML = lines.map((l, k) => `<span><i style="background:${colors[k]}"></i>${esc(l.s.name)} (${esc(l.s.id)})</span>`).join('');
+    const tip = $('#tip'), xh = svg.querySelector('#xh');
+    svg.onmousemove = (e) => {
+      const r = svg.getBoundingClientRect(); const px = (e.clientX - r.left) * (W / r.width);
+      const i = Math.max(0, Math.min(months.length - 1, Math.round((px - m.l) / (W - m.l - m.r) * (months.length - 1))));
+      xh.setAttribute('x1', x(i)); xh.setAttribute('x2', x(i)); xh.setAttribute('visibility', 'visible');
+      tip.innerHTML = `<b>${fmtMonth(months[i])}</b><br>` + lines.map((l, k) => `<span style="color:${colors[k]}">■</span> ${esc(l.s.short)}: ${state.mode === 'yoy' ? fmtPct(l.arr[i]) : fmtIdx(l.arr[i])}`).join('<br>');
+      tip.style.display = 'block';
+      const left = (x(i) / W) * r.width + 12; tip.style.left = Math.min(left, r.width - tip.offsetWidth - 4) + 'px'; tip.style.top = '16px';
+    };
+    svg.onmouseleave = () => { tip.style.display = 'none'; xh.setAttribute('visibility', 'hidden'); };
+  }
+
+  function renderMovers() {
+    const bars = (ids) => { const list = ids.map((id) => byId[id]).filter(Boolean); const max = Math.max(...D.series.filter((s) => s.kind === 'material').map((s) => Math.abs(s.cols.latest ?? 0)), 1);
+      return list.map((s) => { const v = s.cols.latest; const w = Math.abs(v) / max * 100; const col = v >= 0 ? 'var(--gold)' : 'var(--midblue)';
+        return `<div class="bar" data-id="${esc(s.id)}" title="Show ${esc(s.name)} in the trend chart"><span class="lab">${esc(s.name)}</span><span class="track"><span class="fill" style="width:${w.toFixed(1)}%;background:${col}"></span></span><span class="v">${fmtPct(v)}</span></div>`; }).join(''); };
+    return `<section id="movers" aria-labelledby="h-mv"><h2 id="h-mv">Top movers, ${esc(D.dataMonthLabel)}</h2><p class="lede">Materials ranked by year-over-year change in the latest month. Bars share one scale.</p>
+      <div class="movers"><div class="mv"><h3>Biggest increases</h3>${bars(D.summary.gainers)}</div><div class="mv"><h3>Smallest increases or declines</h3>${bars(D.summary.decliners)}</div></div></section>`;
+  }
+
+  function renderCalcShell() {
+    return `<section id="escalation" aria-labelledby="h-esc"><h2 id="h-esc">Escalation calculator</h2><p class="lede">Change in a series from a base month (bid date, budget date, last GMax) to the latest reported month. Enter an amount to see it escalated at the same rate.</p>
+      <div class="calc">
+        <label class="f">Series<select id="c-series">${seriesOptions(state.a)}</select></label>
+        <label class="f">Base month<select id="c-base"></select></label>
+        <label class="f">Amount at base (optional)<input type="text" id="c-amt" inputmode="decimal" placeholder="e.g. 1,250,000" autocomplete="off"></label>
+      </div>
+      <div class="calc-out" id="c-out" aria-live="polite"></div></section>`;
+  }
+
+  function fillBase(keep) {
+    const s = byId[$('#c-series').value]; const sel = $('#c-base');
+    const opts = D.months.map((m, i) => [m, s.history[i]]).filter(([, v]) => v != null);
+    const def = keep && opts.some(([m]) => m === keep) ? keep : (opts[Math.max(0, opts.length - 25)] || opts[0])[0];
+    sel.innerHTML = opts.slice(0, -1).reverse().map(([m]) => `<option value="${m}"${m === def ? ' selected' : ''}>${fmtMonth(m)}</option>`).join('');
+  }
+
+  function calc() {
+    const s = byId[$('#c-series').value]; const base = $('#c-base').value; if (!s || !base) return;
+    const bi = D.months.indexOf(base); const bv = s.history[bi];
+    let li = s.history.length - 1; while (li > 0 && s.history[li] == null) li--;
+    const lv = s.history[li]; const n = li - bi;
+    const ch = (lv / bv - 1) * 100; const ann = n > 0 ? (Math.pow(lv / bv, 12 / n) - 1) * 100 : null;
+    const amt = parseFloat(($('#c-amt').value || '').replace(/[^0-9.]/g, ''));
+    let html = `<div class="hero"><span class="eyebrow">Change since ${fmtMonth(base)}</span><b>${fmtPct(Math.round(ch * 10) / 10)}</b><span>${n} months</span></div>`;
+    html += `<div><span class="eyebrow">Annualized rate</span><b>${ann == null ? '–' : fmtPct(Math.round(ann * 10) / 10)}</b><span>Compounded per year</span></div>`;
+    html += `<div><span class="eyebrow">Index</span><b>${fmtIdx(bv)} → ${fmtIdx(lv)}</b><span>${fmtMonth(base)} → ${fmtMonth(D.months[li])}</span></div>`;
+    if (!isNaN(amt) && amt > 0) html += `<div><span class="eyebrow">Escalated amount</span><b>${fmtMoney(amt * lv / bv)}</b><span>${fmtMoney(amt * lv / bv - amt)} change on ${fmtMoney(amt)}</span></div>`;
+    if (s.staleSince) html += `<div><span class="eyebrow">Caution</span><b style="font-size:1rem">No new price since ${fmtMonth(s.staleSince)}</b><span>Result may understate the change.</span></div>`;
+    $('#c-out').innerHTML = html;
+  }
+
+  function selectSeries(id) {
+    state.a = id; $('#sel-a').value = id; drawTrend();
+    document.querySelectorAll('tr.row').forEach((r) => r.classList.toggle('sel', r.dataset.id === id));
+  }
+
+  function wire() {
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('a')) return;
+      const sortBtn = e.target.closest('[data-sort]');
+      if (sortBtn) { state.sort = sortBtn.dataset.sort; $('#materials').outerHTML = renderMaterials(); return; }
+      const modeBtn = e.target.closest('[data-mode]');
+      if (modeBtn) { state.mode = modeBtn.dataset.mode; modeBtn.parentElement.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b === modeBtn)); drawTrend(); return; }
+      const rangeBtn = e.target.closest('[data-range]');
+      if (rangeBtn) { state.range = +rangeBtn.dataset.range; rangeBtn.parentElement.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b === rangeBtn)); drawTrend(); return; }
+      const row = e.target.closest('[data-id]');
+      if (row) selectSeries(row.dataset.id);
+    });
+    document.addEventListener('keydown', (e) => { const row = e.target.closest?.('tr.row'); if (row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); selectSeries(row.dataset.id); } });
+    $('#sel-a').addEventListener('change', (e) => selectSeries(e.target.value));
+    $('#sel-b').addEventListener('change', (e) => { state.b = e.target.value; drawTrend(); });
+    $('#c-series').addEventListener('change', () => { fillBase($('#c-base').value); calc(); });
+    $('#c-base').addEventListener('change', calc);
+    $('#c-amt').addEventListener('input', calc);
+    let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(drawTrend, 120); });
+    matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { $('#summary').outerHTML = renderSummary(); drawTrend(); });
+  }
+
+  function renderFooter() {
+    $('#m-method').textContent = D.method;
+    $('#m-cols').innerHTML = D.columns.map((c) => `<dt>${esc(c.label)}</dt><dd>${esc(c.desc)}</dd>`).join('') + `<dt>MoM</dt><dd>Latest month vs the prior month</dd>`;
+    const up = new Date(D.generatedAt);
+    $('#m-source').innerHTML = `Source: ${esc(D.source)} Data checked ${up.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. BLS revises recent months, so figures for the last four months can change.${D.failedSeries?.length ? ` Not refreshed on the last run: ${D.failedSeries.map(esc).join(', ')}.` : ''}`;
+  }
+
+  load().then((data) => {
+    D = data; byId = Object.fromEntries(D.series.map((s) => [s.id, s]));
+    if (!byId[state.a]) state.a = D.series[0].id;
+    const up = new Date(D.generatedAt);
+    $('#stamp').innerHTML = `<strong>Data through ${esc(D.dataMonthLabel)}</strong>Checked ${up.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    $('#app').innerHTML = renderSummary() + renderMaterials() + renderBuildings() + renderTrendShell() + renderMovers() + renderCalcShell();
+    renderFooter(); wire(); drawTrend(); fillBase(); calc();
+  }).catch((err) => {
+    $('#loading').textContent = `The data file could not be loaded (${err.message}). Try again in a minute; if it persists, check the latest GitHub Actions run.`;
+    $('#stamp').innerHTML = '<strong>Data unavailable</strong>';
+  });
+})();
+</script>
+</body>
+</html>
