@@ -213,3 +213,19 @@ input[type="month"], input[type="number"] { font: inherit; font-size: .88rem; pa
 .timeline .mark { position: absolute; top: 6px; width: 2px; height: 38px; background: var(--gold); }
 .timeline .lbl { position: absolute; top: 40px; font-size: .72rem; color: var(--ink-2); white-space: nowrap; transform: translateX(-50%); }
 .timeline .lbl.top { top: -8px; }
+
+/* Sticky masthead (preview: add ?sticky=1 to the URL). Compacts after scrolling. */
+html.sticky .masthead { position: sticky; top: 0; z-index: 20; }
+html.sticky .masthead nav.jump { box-shadow: 0 1px 0 var(--rule); }
+html.sticky header.band .wrap, html.sticky .brand img, html.sticky .brand h1 { transition: padding .18s ease, height .18s ease, font-size .18s ease; }
+html.sticky.scrolled header.band .wrap { padding-block: 8px; }
+html.sticky.scrolled .brand img { height: 24px; }
+html.sticky.scrolled .brand h1 { font-size: 1rem; }
+html.sticky.scrolled .brand h1 small { display: none; }
+html.sticky.scrolled .stamp { font-size: .74rem; }
+html.sticky.scrolled .stamp strong { font-size: .86rem; display: inline; margin-right: 8px; }
+html.sticky.scrolled nav.tabs a { padding-block: 7px 6px; }
+html.sticky main section, html.sticky footer { scroll-margin-top: calc(var(--mast-h, 140px) + 12px); }
+@media (max-width: 640px) {
+  html.sticky.scrolled .stamp, html.sticky.scrolled nav.jump { display: none; }
+}

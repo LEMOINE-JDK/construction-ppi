@@ -104,5 +104,20 @@
   let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => redrawers.forEach((f) => f()), 120); });
   matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => redrawers.forEach((f) => f()));
 
+  // STICKY PREVIEW: ?sticky=1 turns on the sticky masthead and carries the flag across the page tabs.
+  if (new URLSearchParams(location.search).has('sticky')) {
+    const root = document.documentElement;
+    root.classList.add('sticky');
+    document.querySelectorAll('nav.tabs a').forEach((a) => { const u = new URL(a.getAttribute('href'), location.href); u.searchParams.set('sticky', '1'); a.href = u.href; });
+    const mast = document.querySelector('.masthead');
+    const setH = () => mast && root.style.setProperty('--mast-h', mast.offsetHeight + 'px');
+    if (mast && 'ResizeObserver' in window) new ResizeObserver(setH).observe(mast);
+    setH();
+    // Hysteresis so the header doesn't flicker when it shrinks near the threshold.
+    const onScroll = () => { const y = window.scrollY; if (y > 80) root.classList.add('scrolled'); else if (y < 10) root.classList.remove('scrolled'); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
+
   window.LD = { MON, $, esc, fmtPct, fmtPts, fmtIdx, fmtNum, fmtSigned, fmtMoney, fmtBil, fmtMonth, fmtMonthShort, cssVar, tone, addMonths, monthDiff, loadJSON, setStamp, niceTicks, spark, lineChart, onRedraw };
 })();
