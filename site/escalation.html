@@ -4,8 +4,80 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>LEMOINE Escalation Planner</title>
-<meta name="description" content="Escalate an estimate to the midpoint of construction using selling-price indexes or a custom rate.">
-<link rel="stylesheet" href="assets/site.css?v=5">
+<meta name="description" content="Escalate an estimate to the midpoint of construction using Construction Analytics cost indexes.">
+<link rel="stylesheet" href="assets/site.css?v=6">
+<style>
+/* Layout: black brand band, then inputs and result side by side on desktop, then index chart, then all-index comparison. */
+:root {
+  --yellow: #FFC836; --gold: #D19000; --navy: #003B5E; --midblue: #5B809F;
+  --ink: #111214; --ink-2: #4a5058; --ink-3: #7a8089;
+  --paper: #ffffff; --paper-2: #f5f6f4; --rule: #e2e4e1;
+  --band: #000000; --band-ink: #ffffff; --band-ink-2: #c9ccd0;
+  --up-text: #8a5f00; --warn-bg: #fff6dd; --focus: #003B5E;
+  --font: Aptos, "Segoe UI", Arial, Helvetica, sans-serif;
+  --mono: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ink: #eceeea; --ink-2: #b4b9bf; --ink-3: #8a9097; --paper: #121314; --paper-2: #1b1d1f; --rule: #2c2f33;
+  --up-text: #FFC836; --warn-bg: #2d2610; --focus: #A6BCD6; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --ink: #eceeea; --ink-2: #b4b9bf; --ink-3: #8a9097; --paper: #121314; --paper-2: #1b1d1f; --rule: #2c2f33;
+  --up-text: #FFC836; --warn-bg: #2d2610; --focus: #A6BCD6; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font: 15px/1.5 var(--font); }
+.wrap { max-width: 1200px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+main .wrap { display: grid; gap: 36px; padding-block: 26px 48px; }
+h2 { font-size: 1.15rem; margin: 0 0 4px; text-wrap: balance; }
+.lede { margin: 0 0 14px; color: var(--ink-2); font-size: .9rem; max-width: 75ch; }
+.eyebrow { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); font-weight: 600; }
+.top { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 28px; align-items: start; }
+@media (max-width: 860px) { .top { grid-template-columns: minmax(0, 1fr); } }
+.form { display: grid; gap: 14px; }
+label.f { display: grid; gap: 4px; font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); font-weight: 600; min-width: 0; }
+select, input { font: inherit; font-size: .92rem; padding: 7px 9px; border: 1px solid var(--ink-3); background: var(--paper); color: var(--ink); width: 100%; min-width: 0; text-transform: none; letter-spacing: 0; font-weight: 400; }
+.row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.hint { font-size: .8rem; color: var(--ink-2); margin: 0; }
+.result { display: grid; gap: 12px; }
+.hero { background: var(--band); color: var(--band-ink); padding: 18px 20px; display: grid; gap: 4px; border-left: 6px solid var(--yellow); }
+.hero .eyebrow { color: var(--yellow); }
+.hero b { font-size: 2.3rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.hero span { color: var(--band-ink-2); font-size: .86rem; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.card { background: var(--paper-2); padding: 12px 14px; display: grid; gap: 2px; min-width: 0; }
+.card b { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.card span:last-child { font-size: .8rem; color: var(--ink-2); }
+.warn { background: var(--warn-bg); border-left: 4px solid var(--gold); padding: 10px 14px; font-size: .86rem; }
+.timeline { position: relative; height: 56px; margin: 4px 6px 0; }
+.timeline .track { position: absolute; left: 0; right: 0; top: 24px; height: 2px; background: var(--rule); }
+.timeline .bar { position: absolute; top: 19px; height: 12px; background: var(--ink); }
+.timeline .mk { position: absolute; top: 12px; width: 2px; height: 26px; }
+.timeline .lb { position: absolute; font-size: .72rem; color: var(--ink-2); white-space: nowrap; transform: translateX(-50%); }
+.chartbox { border: 1px solid var(--rule); padding: 10px; }
+.chartbox svg { width: 100%; height: 300px; display: block; }
+.keyline { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: .8rem; color: var(--ink-2); margin-top: 6px; }
+.keyline i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 6px; }
+.tablebox { overflow-x: auto; border: 1px solid var(--rule); }
+table { border-collapse: collapse; width: 100%; font-size: .86rem; }
+th, td { padding: 7px 10px; border-bottom: 1px solid var(--rule); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; white-space: normal; }
+thead th { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); font-weight: 600; vertical-align: bottom; }
+tr.grp th { text-align: left; background: var(--paper-2); font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-2); padding-top: 12px; }
+tbody tr.pick { cursor: pointer; }
+tbody tr.pick:hover td:first-child, tbody tr.sel td:first-child { box-shadow: inset 4px 0 0 var(--yellow); }
+tr.sel td { font-weight: 700; }
+td.fc { color: var(--ink-3); font-style: italic; }
+.tag { display: inline-block; margin-left: 6px; font-size: .64rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 0 5px; border: 1px solid currentColor; color: var(--ink-3); vertical-align: 1px; }
+.tag.cost { color: var(--gold); }
+details summary { cursor: pointer; font-weight: 600; font-size: .92rem; }
+.credit { background: var(--paper-2); border-bottom: 1px solid var(--rule); }
+.credit .wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 28px; padding-block: 14px; }
+.credit p { margin: 0; max-width: 78ch; font-size: .9rem; }
+.credit .who { font-weight: 700; }
+.credit .links { display: flex; flex-wrap: wrap; gap: 8px; }
+.credit a { font-size: .84rem; font-weight: 600; color: var(--ink); text-decoration: none; border: 1px solid var(--ink); padding: 6px 12px; white-space: nowrap; }
+.credit a:hover { background: var(--yellow); border-color: var(--yellow); color: #000; }
+</style>
 </head>
 <body>
 <div class="masthead">
@@ -13,167 +85,231 @@
   <div class="wrap">
     <div class="brand">
       <img src="assets/logo-reversed.svg" alt="LEMOINE" onerror="this.remove()">
-      <h1>Escalation Planner<small>Escalate an estimate to the midpoint of construction</small></h1>
+      <h1>Escalation Planner<small>Construction Analytics cost indexes, escalated to the midpoint of construction</small></h1>
     </div>
-    <div class="stamp" id="stamp"><strong>Loading data…</strong></div>
+    <div class="stamp"><strong>Index tables 4/14/26</strong>Construction Analytics</div>
   </div>
 </header>
 <nav class="tabs" aria-label="Dashboards">
   <div class="wrap"><a href="./">Producer Prices</a><a href="quarterly.html">Final Demand</a><a href="escalation.html" aria-current="page">Escalation Planner</a><a href="spending.html">Spending &amp; Markets</a><a href="labor.html">Labor &amp; Productivity</a></div>
 </nav>
-
 </div>
+
+<section class="credit" aria-label="Data source acknowledgment">
+  <div class="wrap">
+    <p><span class="eyebrow">Index data courtesy of</span><br><span class="who">Ed Zarenski, Construction Analytics.</span> The cost indexes on this page are compiled by Construction Analytics, and the 2026 to 2028 values are his forecasts. Index tables updated April 14, 2026. Used with permission; all rights remain with Construction Analytics.</p>
+    <div class="links">
+      <a href="https://edzarenski.com/" target="_blank" rel="noopener">edzarenski.com</a>
+      <a href="https://edzarenski.com/2026/05/13/construction-cost-inflation-2026/" target="_blank" rel="noopener">Construction Cost Inflation 2026</a>
+    </div>
+  </div>
+</section>
+
 <main>
-  <div class="wrap" id="app">
-    <section aria-labelledby="h-in">
-      <h2 id="h-in">Project inputs</h2>
-      <p class="lede">Escalation runs from the date the estimate was priced to the midpoint of construction, the point where roughly half the cost has been bought out. Change any input and the results update.</p>
-      <div class="form-row">
+  <div class="wrap">
+    <section class="top" aria-label="Escalation calculator">
+      <div class="form">
+        <div>
+          <h2>Project inputs</h2>
+          <p class="lede">Escalation runs from the month the estimate was priced to the midpoint of construction, where roughly half the cost has been bought out.</p>
+        </div>
+        <label class="f">Cost index<select id="idx"></select></label>
+        <p class="hint" id="idx-note"></p>
         <label class="f">Estimate amount<input type="text" id="amt" inputmode="decimal" value="25,000,000" autocomplete="off"></label>
-        <label class="f">Estimate priced as of<input type="month" id="priced"></label>
-        <label class="f">Construction start<input type="month" id="start"></label>
+        <div class="row2">
+          <label class="f">Priced as of<input type="month" id="priced"></label>
+          <label class="f">Construction start<input type="month" id="start"></label>
+        </div>
         <label class="f">Duration (months)<input type="number" id="dur" min="1" max="120" step="1" value="18"></label>
       </div>
-    </section>
-
-    <section aria-labelledby="h-rate">
-      <h2 id="h-rate">Escalation rate</h2>
-      <p class="lede">Use a selling-price index: what contractors charge for finished buildings, including labor, overhead and margin. Material indexes measure only part of cost and can overstate or understate whole-building escalation.</p>
-      <div class="radio" role="radiogroup" aria-label="Rate source">
-        <label><input type="radio" name="src" value="series" id="src-series" checked> Trailing rate of an index</label>
-        <label><input type="radio" name="src" value="custom" id="src-custom"> Custom annual rate (for example, a Turner, RLB or Mortenson forecast)</label>
+      <div class="result" aria-live="polite">
+        <div class="hero" id="hero"></div>
+        <div class="timeline" id="timeline" aria-hidden="true"></div>
+        <div class="cards" id="cards"></div>
+        <div class="warn" id="warn" hidden></div>
       </div>
-      <div class="form-row" style="margin-top:14px">
-        <label class="f" id="f-series">Index<select id="series"></select></label>
-        <label class="f" id="f-look">Trailing period<select id="look"><option value="1">1 year</option><option value="3" selected>3 years</option><option value="5">5 years</option></select></label>
-        <label class="f" id="f-custom" hidden>Custom rate (% per year)<input type="number" id="custom" step="0.1" value="5.0"></label>
-      </div>
-      <p class="note warn" id="cost-warn" hidden style="margin-top:14px"><b>Cost index selected.</b> This series tracks material prices only. It excludes labor, productivity, overhead and margin, so it is not a whole-building escalation rate. Use it to test a material-heavy scope, or switch to a building type.</p>
     </section>
 
-    <section aria-labelledby="h-out">
-      <h2 id="h-out">Result</h2>
-      <div class="timeline" id="timeline" aria-hidden="true"></div>
-      <div class="calc-out" id="out" aria-live="polite"></div>
-      <h3 style="font-size:.95rem;margin:22px 0 8px">Sensitivity</h3>
-      <div class="tablebox"><table class="plain" id="sens"></table></div>
+    <section aria-labelledby="h-ch">
+      <h2 id="h-ch">Index history and forecast</h2>
+      <p class="lede" id="ch-lede"></p>
+      <div class="chartbox"><svg id="chart" role="img" aria-label="Selected index by year"></svg><div class="keyline" id="key"></div></div>
     </section>
 
-    <section aria-labelledby="h-ref">
-      <h2 id="h-ref">Reference rates</h2>
-      <p class="lede">Compound annual change in each selling-price index, measured on 12-month averages to smooth monthly noise. Click a row to use it.</p>
-      <div class="tablebox"><table class="plain" id="ref"></table></div>
+    <section aria-labelledby="h-cmp">
+      <h2 id="h-cmp">Same project, every index</h2>
+      <p class="lede">Escalation from the pricing date to the midpoint, and the total with escalation, under each index. Click a row to use that index above. Cost-only indexes track materials and leave out labor, overhead and margin.</p>
+      <div class="tablebox"><table id="cmp"></table></div>
+    </section>
+
+    <section aria-labelledby="h-src">
+      <details>
+        <summary id="h-src">Source table (2015–2028)</summary>
+        <p class="lede" style="margin-top:10px">Annual index values as published, base 2024 = 100. Italic values are Construction Analytics forecasts.</p>
+        <div class="tablebox"><table id="src"></table></div>
+      </details>
     </section>
   </div>
 </main>
 
-<footer id="method">
+<footer>
   <div class="wrap">
-    <h2>Method</h2>
-    <p><b>Midpoint of construction</b> = construction start plus half the duration. <b>Escalation months</b> = months from the pricing date to the midpoint. <b>Escalation factor</b> = (1 + annual rate) ^ (months ÷ 12).</p>
-    <p><b>Trailing rate</b> = compound annual change between the average index of the latest 12 months and the average of the same 12 months 1, 3 or 5 years earlier. A trailing rate describes the past. It is not a forecast; pick the rate you believe for the project period, and use the custom rate to enter a published forecast.</p>
-    <p><b>Selling-price vs cost indexes.</b> BLS building-type and trade-contractor PPIs measure what contractors charge, like the Turner, RLB and Mortenson indexes. Material PPIs measure input costs only. Published guidance, including Ed Zarenski's at edzarenski.com, warns against escalating whole buildings with material cost indexes.</p>
-    <p id="m-source"></p>
+    <h2>Method and source</h2>
+    <p><b>Source.</b> <span id="m-src"></span>. Base year 2024 = 100. Values for <span id="m-fy"></span> and later are Construction Analytics forecasts. Turner, Rider Levett Bucknall, Mortenson, ENR, RS Means, IHS, FHWA, Bureau of Reclamation, Census, S&amp;P/Case-Shiller and BLS PPI series are as compiled by Construction Analytics.</p>
+    <p><b>Monthly values.</b> Each annual index is an annual average, so it is placed at mid-year (July) and months between are interpolated geometrically. Dates past July of the last table year are extended at that index's final annual rate and flagged.</p>
+    <p><b>Midpoint.</b> Construction start plus half the duration. Escalation = index at midpoint ÷ index at pricing date − 1.</p>
+    <p>Index data used with permission of Ed Zarenski, Construction Analytics (edzarenski.com). For planning; not a guarantee of future cost.</p>
     <p class="tagline">LEMOINE &nbsp;|&nbsp; One mission. <span>Yours.™</span></p>
   </div>
 </footer>
 
-<script src="assets/common.js?v=5"></script>
 <script>
 (() => {
   'use strict';
-  const { $, esc, fmtPct, fmtMoney, fmtMonth, addMonths, monthDiff } = LD;
-  let D, byId;
+  const DATA = {"source":"Ed Zarenski, Construction Analytics (edzarenski.com), index tables updated April 14, 2026","base":"2024 = 100","dataAsOf":"Q1 2026 where available","firstForecastYear":2026,"years":[2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025,2026,2027,2028],"groups":[{"name":"Nonresidential buildings (selling price)","series":[{"name":"CA Nonresidential Bldgs","cost":false,"composite":true,"values":[38.2,38.5,39.1,41.2,44.9,49.5,53.9,57.3,53.8,52.4,53.7,55.1,56.9,59.2,61.4,63.8,66.4,70.1,73.5,75.4,81.5,91.9,97.1,100.0,104.6,109.2,113.6,118.1]},{"name":"Turner Building Cost Index","cost":false,"composite":false,"values":[43.0,43.4,43.6,45.9,50.3,55.6,59.9,63.7,58.4,56.0,57.0,58.2,60.6,63.3,66.2,69.3,72.8,76.9,81.1,82.6,84.1,90.8,96.3,100.0,104.1,108.8,113.2,117.7]},{"name":"Rider Levett Bucknall","cost":false,"composite":false,"values":[37.7,38.0,39.1,40.9,43.9,48.0,52.8,56.7,54.8,53.4,54.1,55.0,56.8,59.2,62.3,65.7,68.7,71.8,75.8,78.5,82.3,88.9,95.0,100.0,104.4,109.1,114.0,119.1]},{"name":"Mortenson avg 6 cities nonres bldg","cost":false,"composite":false,"values":[null,null,null,null,null,null,null,53.7,50.5,51.6,54.3,55.9,57.5,59.6,61.2,63.4,65.5,70.4,72.5,74.0,85.0,94.7,98.1,100.0,107.3,111.6,116.1,120.8]},{"name":"PPI Industrial Bldg","cost":false,"composite":false,"values":[null,null,null,null,null,null,51.9,54.6,55.9,54.6,55.5,57.0,58.3,60.2,61.4,61.7,63.4,66.3,69.6,71.6,76.2,94.6,100.3,100.0,104.0,107.1,109.8,112.5]},{"name":"PPI Warehouse Bldg","cost":false,"composite":false,"values":[null,null,null,41.8,44.8,48.1,51.0,53.3,54.4,53.0,54.2,56.2,57.7,59.1,60.2,61.2,63.0,65.2,66.9,67.9,74.7,96.6,100.1,100.0,102.0,105.1,107.7,110.4]},{"name":"PPI School Bldg","cost":false,"composite":false,"values":[null,null,null,null,41.9,46.6,52.0,54.4,58.1,57.9,59.5,61.6,62.5,64.6,65.8,66.4,67.8,70.7,74.4,76.1,79.5,93.7,99.3,100.0,103.0,106.1,109.3,112.6]},{"name":"PPI Office Bldg","cost":false,"composite":false,"values":[null,null,null,null,null,48.2,52.0,54.1,55.5,54.2,55.3,56.8,57.7,59.3,60.7,61.7,63.1,65.7,68.0,69.5,74.7,91.5,99.1,100.0,103.5,107.6,110.9,114.2]},{"name":"PPI Health Care Bldg","cost":false,"composite":false,"values":[null,null,null,null,null,null,null,null,null,null,null,63.1,64.0,65.9,66.4,66.8,67.8,70.6,73.1,74.7,79.1,94.0,100.2,100.0,101.5,105.6,108.7,112.0]},{"name":"PPI Concrete Contractor","cost":false,"composite":false,"values":[null,null,null,null,null,null,55.2,57.0,58.5,58.0,58.2,58.8,59.8,60.8,62.7,65.3,67.6,70.7,74.5,75.8,82.1,97.1,98.3,100.0,104.0,107.1,109.8,112.5]},{"name":"PPI Roofing Contractor","cost":false,"composite":false,"values":[null,null,null,null,null,null,45.6,50.1,54.0,52.9,53.8,55.8,56.8,59.1,60.5,61.3,62.8,63.3,64.5,66.5,71.1,85.9,97.4,100.0,104.0,108.2,111.4,114.7]},{"name":"PPI Electrical Contractor","cost":false,"composite":false,"values":[null,null,null,null,null,null,58.4,59.9,60.5,59.8,61.6,63.0,63.5,64.3,66.5,67.9,68.9,72.0,74.8,76.7,80.8,93.2,99.8,100.0,104.0,107.1,110.3,113.6]},{"name":"PPI Plumbing/HVAC Contractor","cost":false,"composite":false,"values":[null,null,null,null,null,null,55.1,58.4,61.5,62.4,63.7,65.3,66.8,69.7,69.7,68.8,70.1,73.1,76.4,77.0,80.7,92.4,98.9,100.0,103.0,106.1,109.3,112.6]}]},{"name":"Nonresidential material inputs (cost only)","series":[{"name":"Ready Mix Concrete Input","cost":true,"composite":false,"values":[39.2,39.1,39.3,41.3,46.3,51.7,54.0,55.4,56.7,55.4,55.1,56.3,58.0,60.7,63.5,65.8,67.9,70.8,72.5,74.3,77.1,85.1,94.5,100.0,100.8,104.8,109.0,113.4]},{"name":"Fabricated Structural Metal Products Input","cost":true,"composite":false,"values":[42.8,42.9,43.1,48.3,51.8,53.9,55.6,61.3,59.5,59.5,62.5,63.4,63.1,63.8,63.8,63.3,64.8,69.3,68.6,67.1,84.9,108.5,108.0,100.0,104.8,109.0,113.4,117.9]},{"name":"RS Means Index Inputs National","cost":true,"composite":false,"values":[41.9,43.2,44.2,47.1,51.0,54.1,56.6,59.5,61.3,61.8,63.9,65.8,67.3,68.5,69.3,70.2,71.9,75.3,78.1,79.6,86.7,97.0,99.6,100.0,100.6,107.7,111.5,115.4]},{"name":"ENR BCI Index Inputs","cost":true,"composite":false,"values":[42.8,43.4,44.3,47.8,50.4,52.4,53.8,56.2,57.2,58.5,60.6,62.0,63.3,64.6,66.1,67.7,69.9,72.1,73.5,75.3,82.8,93.4,97.4,100.0,104.1,107.3,110.5,113.8]},{"name":"PPI Inputs to Nonres Bldgs","cost":true,"composite":false,"values":[null,null,null,null,null,null,null,null,null,59.8,64.5,65.6,66.0,66.6,63.5,62.4,64.9,69.4,72.3,72.4,85.8,99.3,99.0,100.0,102.5,107.1,110.9,114.7]}]},{"name":"Infrastructure","series":[{"name":"CA Infrastructure composite","cost":false,"composite":true,"values":[38.6,39.0,39.9,43.1,47.7,53.8,56.5,61.3,58.2,59.1,62.1,64.4,65.0,66.7,65.9,64.8,66.2,69.6,72.4,71.9,77.6,91.0,96.8,100.0,102.2,106.2,109.8,113.6]},{"name":"FHWA Highway Index NHCCI","cost":false,"composite":false,"values":[null,30.6,31.3,34.3,41.0,47.5,47.7,51.2,44.6,44.5,46.7,49.5,49.9,52.0,52.5,51.3,51.8,55.4,59.4,59.4,63.7,80.4,93.2,100.0,100.4,103.9,107.5,111.3]},{"name":"Fabricated Structural Metal for Bridges","cost":false,"composite":false,"values":[null,null,null,null,null,null,null,null,null,null,70.4,71.5,68.6,71.9,70.6,62.7,63.9,69.9,70.6,65.3,83.9,105.3,104.1,100.0,100.0,104.0,108.2,112.5]},{"name":"IHS UCCI Pipeline, LNG","cost":false,"composite":false,"values":[44.6,45.5,46.3,47.6,52.4,71.2,86.5,96.2,89.4,90.0,96.2,100.1,100.5,101.4,83.0,74.3,76.0,79.5,80.0,75.6,82.6,91.3,96.2,100.0,104.0,108.2,112.5,117.0]},{"name":"IHS DCCI Refinery, Petrochemical","cost":false,"composite":false,"values":[41.8,41.8,42.2,47.4,51.4,59.8,68.7,75.5,69.1,72.7,78.7,79.5,80.3,81.5,75.5,72.7,75.9,79.9,81.5,79.1,86.4,96.2,96.2,100.0,104.0,108.2,112.5,117.0]},{"name":"BurRec Roads & Bridges","cost":false,"composite":false,"values":[45.1,45.7,47.3,49.4,52.6,56.2,59.6,63.4,62.8,63.6,66.2,67.8,69.6,71.1,71.6,72.1,74.2,76.9,78.9,79.5,85.1,94.4,98.0,100.0,102.6,106.3,109.5,112.8]},{"name":"BurRec Dams & Pumping Plants","cost":false,"composite":false,"values":[45.2,46.1,47.5,49.5,52.6,56.5,59.5,62.8,62.8,63.6,66.1,67.9,69.2,70.6,71.2,72.1,73.8,76.2,78.5,79.1,83.2,92.4,97.3,100.0,103.1,107.2,110.4,113.7]},{"name":"BurRec Distribution Pipelines Steel","cost":false,"composite":false,"values":[null,null,null,null,null,null,63.0,65.3,67.4,68.1,69.8,71.6,73.1,74.6,76.0,76.9,78.4,80.0,81.7,81.9,86.5,96.5,99.5,100.0,103.3,109.7,113.0,116.4]}]},{"name":"Residential","series":[{"name":"CA Residential","cost":false,"composite":true,"values":[38.2,39.4,41.5,45.1,49.4,53.2,54.3,53.0,49.5,48.4,48.8,49.6,52.9,55.9,57.5,60.1,63.3,66.5,68.9,71.8,81.6,94.5,96.9,100.0,103.8,108.2,112.5,117.0]},{"name":"Census New Homes (Laspeyres)","cost":false,"composite":false,"values":[41.9,42.9,45.2,48.9,52.6,55.7,56.2,54.3,51.6,50.7,51.2,51.7,55.1,58.5,59.9,63.0,66.2,68.5,70.6,73.5,82.0,95.6,97.9,100.0,103.7,107.9,111.7,115.6]},{"name":"S&P/Case-Shiller Home Price National","cost":false,"composite":false,"values":[35.2,38.0,41.6,46.8,53.4,57.1,56.0,51.1,46.2,45.0,43.3,43.9,48.1,51.3,53.6,56.4,60.0,63.1,65.4,69.2,80.9,92.9,95.1,100.0,102.2,106.3,110.5,115.0]},{"name":"PPI Inputs to Residential","cost":true,"composite":false,"values":[44.6,44.4,45.3,48.3,51.2,54.5,55.8,58.9,58.3,60.2,63.8,65.4,66.5,67.6,65.7,64.9,67.1,72.3,74.1,75.9,89.7,101.1,98.4,100.0,102.5,106.6,110.9,115.3]},{"name":"PPI Inputs to Residential + Labor + O&P","cost":false,"composite":false,"values":[34.9,34.8,35.3,37.6,41.0,45.9,49.7,52.7,48.9,47.6,49.8,51.5,53.5,55.8,56.8,58.2,61.0,65.9,68.8,71.0,81.3,93.7,96.6,100.0,105.4,110.8,116.2,121.9]}]}]};
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const pct = (v, d = 1) => v == null || !isFinite(v) ? '–' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(d) + '%';
+  const money = (v) => v == null || !isFinite(v) ? '–' : v.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+  const ym = (t) => `${MON[((t % 12) + 12) % 12]} ${Math.floor(t / 12)}`;
+  const toT = (s) => { const [y, m] = s.split('-').map(Number); return y * 12 + m - 1; };
+  const fromT = (t) => `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, '0')}`;
+  const Y = DATA.years, FY = DATA.firstForecastYear;
+  const ALL = DATA.groups.flatMap((g) => g.series.map((s) => ({ ...s, group: g.name })));
+  const byName = Object.fromEntries(ALL.map((s) => [s.name, s]));
+  const DEFAULT = 'CA Nonresidential Bldgs';
 
-  // Compound annual rate between 12-month average ending at the latest month and the same window `years` earlier.
-  function trailing(s, years) {
-    let li = s.history.length - 1; while (li > 0 && s.history[li] == null) li--;
-    const win = (end) => { const v = s.history.slice(end - 11, end + 1); return v.length === 12 && v.every((x) => x != null) ? v.reduce((a, b) => a + b, 0) / 12 : null; };
-    const now = win(li), then = win(li - 12 * years);
-    return now && then ? (Math.pow(now / then, 1 / years) - 1) * 100 : null;
+  // Annual points at mid-year (t = year*12 + 6). Geometric interpolation between points; geometric
+  // extension past the last point at the final annual rate. Returns {v, forecast, extended} or null.
+  function indexAt(s, t) {
+    const pts = Y.map((y, i) => [y * 12 + 6, s.values[i], y]).filter((p) => p[1] != null);
+    if (!pts.length || t < pts[0][0]) return null;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [ta, va, ya] = pts[i], [tb, vb, yb] = pts[i + 1];
+      if (t >= ta && t <= tb) return { v: va * Math.pow(vb / va, (t - ta) / (tb - ta)), forecast: (t > ta ? yb : ya) >= FY, extended: false };
+    }
+    const n = pts.length; const [ta, va] = pts[n - 2], [tb, vb, yb] = pts[n - 1];
+    if (t === tb) return { v: vb, forecast: yb >= FY, extended: false };
+    return { v: vb * Math.pow(vb / va, (t - tb) / (tb - ta)), forecast: true, extended: true };
+  }
+  function firstMonth(s) { const i = s.values.findIndex((v) => v != null); return Y[i] * 12 + 6; }
+
+  function escalate(s, I) {
+    const a = indexAt(s, I.tPriced), b = indexAt(s, I.tMid);
+    if (!a || !b) return null;
+    const f = b.v / a.v; const months = I.tMid - I.tPriced;
+    return { a, b, f, pct: (f - 1) * 100, ann: months > 0 ? (Math.pow(f, 12 / months) - 1) * 100 : null, months, forecast: a.forecast || b.forecast, extended: a.extended || b.extended };
   }
 
-  function seriesOptions(selected) {
-    const groups = {};
-    for (const s of D.series) (groups[s.group] ||= []).push(s);
-    const order = Object.entries(groups).sort((a, b) => (a[1][0].kind === 'material') - (b[1][0].kind === 'material'));
-    return order.map(([g, list]) => `<optgroup label="${esc(g)}${list[0].kind === 'material' ? ' (cost only, not recommended)' : ' (selling price)'}">${list.map((s) => `<option value="${esc(s.id)}"${s.id === selected ? ' selected' : ''}>${esc(s.name)}</option>`).join('')}</optgroup>`).join('');
-  }
-
-  function readInputs() {
+  function inputs() {
     const amt = parseFloat(($('#amt').value || '').replace(/[^0-9.]/g, ''));
-    const priced = $('#priced').value, start = $('#start').value;
-    const dur = Math.max(1, Math.min(120, parseInt($('#dur').value, 10) || 0));
-    const src = document.querySelector('input[name="src"]:checked').value;
-    const s = byId[$('#series').value]; const look = +$('#look').value;
-    const rate = src === 'custom' ? parseFloat($('#custom').value) : (s ? trailing(s, look) : null);
-    return { amt, priced, start, dur, src, s, look, rate };
+    const dur = Math.max(1, Math.min(120, parseInt($('#dur').value, 10) || 1));
+    const tPriced = $('#priced').value ? toT($('#priced').value) : null;
+    const tStart = $('#start').value ? toT($('#start').value) : null;
+    return { amt: isFinite(amt) && amt > 0 ? amt : null, dur, tPriced, tStart, tMid: tStart == null ? null : tStart + dur / 2, s: byName[$('#idx').value] };
   }
 
   function render() {
-    const I = readInputs();
-    const isCost = I.src === 'series' && I.s?.kind === 'material';
-    $('#f-series').hidden = $('#f-look').hidden = I.src !== 'series';
-    $('#f-custom').hidden = I.src !== 'custom';
-    $('#cost-warn').hidden = !isCost;
-    if (!I.priced || !I.start || I.rate == null || isNaN(I.rate)) { $('#out').innerHTML = '<div><span class="eyebrow">Waiting for inputs</span><b style="font-size:1rem">Enter dates and a rate</b></div>'; return; }
-    const midpoint = addMonths(I.start, Math.floor(I.dur / 2));
-    const end = addMonths(I.start, I.dur);
-    const months = monthDiff(I.priced, midpoint) + (I.dur % 2 ? 0.5 : 0);
-    const factor = Math.pow(1 + I.rate / 100, months / 12);
-    const escPct = (factor - 1) * 100;
-    const rateLabel = I.src === 'custom' ? 'Custom rate' : `${I.s.short || I.s.name}, trailing ${I.look} yr`;
-    let html = `<div class="hero"><span class="eyebrow">Escalation to midpoint</span><b>${fmtPct(Math.round(escPct * 10) / 10)}</b><span>${months.toFixed(1)} months at ${I.rate.toFixed(1)}% per year</span></div>`;
-    if (!isNaN(I.amt) && I.amt > 0) {
-      html += `<div><span class="eyebrow">Escalation amount</span><b>${fmtMoney(I.amt * (factor - 1))}</b><span>On ${fmtMoney(I.amt)}</span></div>`;
-      html += `<div><span class="eyebrow">Escalated estimate</span><b>${fmtMoney(I.amt * factor)}</b><span>Priced ${fmtMonth(I.priced)} → midpoint ${fmtMonth(midpoint)}</span></div>`;
+    const I = inputs(); const s = I.s;
+    $('#idx-note').innerHTML = `${esc(s.group)}${s.cost ? ' · <b>cost only</b>, not a whole-building rate' : ''}${s.composite ? ' · Construction Analytics composite' : ''}. Data from ${Y[s.values.findIndex((v) => v != null)]}.`;
+    if (I.tPriced == null || I.tStart == null) { $('#hero').innerHTML = '<span class="eyebrow">Waiting for inputs</span><b>–</b><span>Enter the pricing month and construction start.</span>'; return; }
+    const r = escalate(s, I);
+    const midLabel = ym(Math.floor(I.tMid)) + (I.tMid % 1 ? ' (mid-month)' : '');
+    if (!r) {
+      $('#hero').innerHTML = `<span class="eyebrow">Out of range</span><b>–</b><span>${esc(s.name)} starts in ${ym(firstMonth(s))}. Pick a later pricing date or another index.</span>`;
+      $('#cards').innerHTML = ''; $('#warn').hidden = true; $('#timeline').innerHTML = ''; renderTable(I); drawChart(I); return;
     }
-    html += `<div><span class="eyebrow">Rate basis</span><b style="font-size:1rem">${esc(rateLabel)}</b><span>${I.src === 'custom' ? 'Entered by you' : isCost ? 'Material cost index, not whole-building' : 'Selling-price index'}</span></div>`;
-    if (months < 0) html += `<div><span class="eyebrow">Check dates</span><b style="font-size:1rem">Midpoint is before the pricing date</b><span>Escalation is shown as a negative adjustment.</span></div>`;
-    $('#out').innerHTML = html;
-
-    // Timeline: pricing date, construction bar, midpoint marker.
-    const t0 = I.priced < I.start ? I.priced : I.start, t1 = end;
-    const span = Math.max(1, monthDiff(t0, t1));
-    const pos = (m) => (monthDiff(t0, m) / span) * 100;
-    $('#timeline').innerHTML = `<span class="bar" style="left:${pos(I.start)}%;width:${pos(end) - pos(I.start)}%"></span><span class="mark" style="left:${pos(I.priced)}%;background:var(--ink-3)"></span><span class="lbl top" style="left:${Math.max(6, Math.min(94, pos(I.priced)))}%">Priced ${LD.fmtMonthShort(I.priced)}</span><span class="mark" style="left:${pos(midpoint)}%"></span><span class="lbl" style="left:${Math.max(6, Math.min(94, pos(midpoint)))}%">Midpoint ${LD.fmtMonthShort(midpoint)}</span>`;
-
-    const rates = [I.rate - 2, I.rate - 1, I.rate, I.rate + 1, I.rate + 2];
-    const row = (label, fn) => `<tr><td>${label}</td>${rates.map((r, i) => `<td${i === 2 ? ' style="font-weight:700"' : ''}>${fn(r)}</td>`).join('')}</tr>`;
-    const f = (r) => Math.pow(1 + r / 100, months / 12);
-    $('#sens').innerHTML = `<thead><tr><th>Annual rate</th>${rates.map((r) => `<th>${r.toFixed(1)}%</th>`).join('')}</tr></thead><tbody>${row('Escalation %', (r) => fmtPct(Math.round((f(r) - 1) * 1000) / 10))}${!isNaN(I.amt) && I.amt > 0 ? row('Escalation $', (r) => fmtMoney(I.amt * (f(r) - 1))) : ''}</tbody>`;
+    $('#hero').innerHTML = I.amt
+      ? `<span class="eyebrow">Total with escalation</span><b>${money(I.amt * r.f)}</b><span>${money(I.amt)} + ${money(I.amt * (r.f - 1))} escalation (${pct(r.pct)}) · ${r.months.toFixed(1)} months, ${ym(I.tPriced)} to ${midLabel} · ${esc(s.name)}</span>`
+      : `<span class="eyebrow">Escalation to midpoint</span><b>${pct(r.pct)}</b><span>${r.months.toFixed(1)} months, ${ym(I.tPriced)} to ${midLabel} · ${esc(s.name)}. Enter an amount to see the total.</span>`;
+    let cards = '';
+    if (I.amt) cards += `<div class="card"><span class="eyebrow">Base estimate</span><b>${money(I.amt)}</b><span>Priced ${ym(I.tPriced)}</span></div><div class="card"><span class="eyebrow">Escalation</span><b>${money(I.amt * (r.f - 1))}</b><span>${pct(r.pct)} to midpoint</span></div>`;
+    cards += `<div class="card"><span class="eyebrow">Annualized rate</span><b>${pct(r.ann)}</b><span>Compounded per year</span></div>`;
+    cards += `<div class="card"><span class="eyebrow">Index</span><b>${r.a.v.toFixed(1)} → ${r.b.v.toFixed(1)}</b><span>Factor ${r.f.toFixed(4)}</span></div>`;
+    $('#cards').innerHTML = cards;
+    const w = [];
+    if (r.months < 0) w.push('The midpoint falls before the pricing date, so the adjustment is negative. Check the dates.');
+    if (r.extended) w.push(`The midpoint is past July ${Y.at(-1)}, the last value in the table. It is extended at the index's ${Y.at(-2)}–${Y.at(-1)} rate.`);
+    else if (r.forecast) w.push(`This result uses Construction Analytics forecast values (${FY} and later).`);
+    if (s.cost) w.push('This is a material cost index. It excludes labor, productivity, overhead and margin, so it is not a whole-building escalation rate.');
+    $('#warn').hidden = !w.length; $('#warn').innerHTML = w.map(esc).join('<br>');
+    const t0 = Math.min(I.tPriced, I.tStart), t1 = I.tStart + I.dur, span = Math.max(1, t1 - t0);
+    const p = (t) => ((t - t0) / span) * 100; const clamp = (v) => Math.max(5, Math.min(95, v));
+    $('#timeline').innerHTML = `<span class="track"></span><span class="bar" style="left:${p(I.tStart)}%;width:${p(t1) - p(I.tStart)}%"></span><span class="mk" style="left:${p(I.tPriced)}%;background:${css('--ink-3')}"></span><span class="lb" style="top:0;left:${clamp(p(I.tPriced))}%">Priced ${ym(I.tPriced)}</span><span class="mk" style="left:${p(I.tMid)}%;background:${css('--gold')}"></span><span class="lb" style="top:40px;left:${clamp(p(I.tMid))}%">Midpoint ${midLabel}</span>`;
+    renderTable(I); drawChart(I);
   }
 
-  function renderRef() {
-    const list = D.series.filter((s) => s.kind !== 'material');
-    let html = `<thead><tr><th>Selling-price index</th><th>Latest YoY</th><th>1 yr</th><th>3 yr</th><th>5 yr</th></tr></thead><tbody>`;
-    let g = null;
-    for (const s of list) {
-      if (s.group !== g) { html += `<tr class="grp"><th colspan="5">${esc(s.group)}</th></tr>`; g = s.group; }
-      const t = [1, 3, 5].map((y) => trailing(s, y));
-      html += `<tr class="click" data-id="${esc(s.id)}" tabindex="0" title="Use this index"><td>${esc(s.name)}<span class="sub-id">${esc(s.id)}</span></td><td>${fmtPct(s.cols.latest)}</td>${t.map((v) => `<td>${fmtPct(v == null ? null : Math.round(v * 10) / 10)}</td>`).join('')}</tr>`;
+  function renderTable(I) {
+    let h = `<thead><tr><th>Index</th><th>Escalation %</th>${I.amt ? '<th>Escalation $</th><th>Total with escalation</th>' : ''}<th>Annualized</th><th>${Y.at(-4)}–${Y.at(-3)}</th><th>${Y.at(-3)}–${Y.at(-2)}</th><th>${Y.at(-2)}–${Y.at(-1)}</th></tr></thead><tbody>`;
+    const yr = (s, a, b) => { const i = Y.indexOf(a), j = Y.indexOf(b); return s.values[i] && s.values[j] ? (s.values[j] / s.values[i] - 1) * 100 : null; };
+    for (const g of DATA.groups) {
+      h += `<tr class="grp"><th colspan="${I.amt ? 8 : 6}">${esc(g.name)}</th></tr>`;
+      for (const s of g.series) {
+        const r = I.tPriced != null && I.tStart != null ? escalate(s, I) : null;
+        h += `<tr class="pick${s.name === I.s.name ? ' sel' : ''}" data-name="${esc(s.name)}" tabindex="0"><td>${esc(s.name)}${s.cost ? '<span class="tag cost">cost</span>' : ''}${s.composite ? '<span class="tag">CA</span>' : ''}</td><td>${r ? pct(r.pct) : 'n/a'}</td>${I.amt ? `<td>${r ? money(I.amt * (r.f - 1)) : '–'}</td><td>${r ? money(I.amt * r.f) : '–'}</td>` : ''}<td>${r ? pct(r.ann) : '–'}</td><td class="fc">${pct(yr(s, Y.at(-4), Y.at(-3)))}</td><td class="fc">${pct(yr(s, Y.at(-3), Y.at(-2)))}</td><td class="fc">${pct(yr(s, Y.at(-2), Y.at(-1)))}</td></tr>`;
+      }
     }
-    $('#ref').innerHTML = html + '</tbody>';
+    $('#cmp').innerHTML = h + '</tbody>';
   }
 
-  LD.loadJSON('data.json').then((data) => {
-    D = data; byId = Object.fromEntries(D.series.map((s) => [s.id, s]));
-    LD.setStamp(D.dataMonthLabel, D.generatedAt);
-    $('#series').innerHTML = seriesOptions(byId.WPU801105 ? 'WPU801105' : 'WPU801');
-    $('#priced').value = D.dataMonth;
-    $('#start').value = addMonths(D.dataMonth, 6);
-    renderRef(); render();
-    document.querySelectorAll('#app input, #app select').forEach((el) => el.addEventListener('input', render));
-    document.querySelectorAll('#app select, input[type="radio"]').forEach((el) => el.addEventListener('change', render));
-    const pick = (tr) => { $('#src-series').checked = true; $('#series').value = tr.dataset.id; document.querySelectorAll('#ref tr.click').forEach((r) => r.classList.toggle('sel', r === tr)); render(); };
-    $('#ref').addEventListener('click', (e) => { const tr = e.target.closest('tr.click'); if (tr) pick(tr); });
-    $('#ref').addEventListener('keydown', (e) => { const tr = e.target.closest('tr.click'); if (tr && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); pick(tr); } });
-    $('#m-source').textContent = `Source: ${D.source} Data checked ${new Date(D.generatedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.`;
-  }).catch((err) => {
-    $('#out').innerHTML = `<div><span class="eyebrow">Data unavailable</span><b style="font-size:1rem">${esc(err.message)}</b><span>Custom rates still work once the page loads data.</span></div>`;
-    $('#stamp').innerHTML = '<strong>Data unavailable</strong>';
-  });
+  function renderSource() {
+    const yrs = Y.filter((y) => y >= 2015);
+    let h = `<thead><tr><th>Index</th>${yrs.map((y) => `<th>${y}</th>`).join('')}</tr></thead><tbody>`;
+    for (const g of DATA.groups) {
+      h += `<tr class="grp"><th colspan="${yrs.length + 1}">${esc(g.name)}</th></tr>`;
+      for (const s of g.series) h += `<tr><td>${esc(s.name)}</td>${yrs.map((y) => { const v = s.values[Y.indexOf(y)]; return `<td${y >= FY ? ' class="fc"' : ''}>${v == null ? '' : v.toFixed(1)}</td>`; }).join('')}</tr>`;
+    }
+    $('#src').innerHTML = h + '</tbody>';
+  }
+
+  function drawChart(I) {
+    const svg = $('#chart'); const s = I.s; const ref = byName[DEFAULT];
+    const box = svg.getBoundingClientRect(); const W = Math.round(box.width) || 800, H = Math.round(box.height) || 300;
+    const m = { l: 44, r: 14, t: 12, b: 26 };
+    const lines = [s]; if (s !== ref) lines.push(ref);
+    const vals = lines.flatMap((x) => x.values).filter((v) => v != null);
+    const lo = Math.floor(Math.min(...vals) / 10) * 10, hi = Math.ceil(Math.max(...vals) / 10) * 10;
+    const x = (y) => m.l + ((y - Y[0]) / (Y.at(-1) - Y[0])) * (W - m.l - m.r);
+    const yv = (v) => m.t + (1 - (v - lo) / (hi - lo)) * (H - m.t - m.b);
+    const ink2 = css('--ink-2'), rule = css('--rule'), ink = css('--ink');
+    let g = '';
+    for (let v = lo; v <= hi; v += (hi - lo) / 5) g += `<line x1="${m.l}" x2="${W - m.r}" y1="${yv(v)}" y2="${yv(v)}" stroke="${Math.round(v) === 100 ? ink : rule}"/><text x="${m.l - 6}" y="${yv(v) + 4}" text-anchor="end" font-size="11" fill="${ink2}">${Math.round(v)}</text>`;
+    const step = W < 560 ? 5 : W < 900 ? 3 : 2;
+    Y.forEach((y) => { if ((y - Y[0]) % step === 0 || y === Y.at(-1)) g += `<text x="${x(y)}" y="${H - 8}" text-anchor="middle" font-size="11" fill="${ink2}">${y}</text>`; });
+    g += `<rect x="${x(FY - 0.5)}" y="${m.t}" width="${x(Y.at(-1)) - x(FY - 0.5)}" height="${H - m.t - m.b}" fill="${css('--paper-2')}"/><text x="${x(FY - 0.5) + 6}" y="${m.t + 12}" font-size="11" fill="${ink2}">Forecast</text>`;
+    const colors = [css('--gold'), css('--midblue')];
+    lines.forEach((ln, k) => {
+      let d = '', pen = false;
+      ln.values.forEach((v, i) => { if (v == null) { pen = false; return; } d += `${pen ? 'L' : 'M'}${x(Y[i]).toFixed(1)},${yv(v).toFixed(1)}`; pen = true; });
+      g += `<path d="${d}" fill="none" stroke="${colors[k]}" stroke-width="${k ? 1.8 : 2.6}" stroke-linejoin="round"/>`;
+    });
+    if (I.tPriced != null && I.tMid != null) {
+      for (const [t, lab] of [[I.tPriced, 'Priced'], [I.tMid, 'Midpoint']]) {
+        const r = indexAt(s, t); if (!r) continue; const yy = t / 12 - 0.5;
+        if (yy < Y[0] || yy > Y.at(-1) + 3) continue;
+        const cx = Math.min(x(yy), W - m.r); g += `<circle cx="${cx}" cy="${yv(r.v)}" r="5" fill="${ink}" stroke="${css('--paper')}" stroke-width="2"/><text x="${cx}" y="${yv(r.v) - 10}" text-anchor="middle" font-size="11" font-weight="700" fill="${ink}">${lab}</text>`;
+      }
+    }
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.innerHTML = g;
+    $('#key').innerHTML = lines.map((ln, k) => `<span><i style="background:${colors[k]}"></i>${esc(ln.name)}</span>`).join('');
+    $('#ch-lede').textContent = s === ref ? 'Annual index, base 2024 = 100. The shaded band is the forecast period.' : `${s.name} compared with CA Nonresidential Bldgs. Annual index, base 2024 = 100. The shaded band is the forecast period.`;
+  }
+
+  // Init
+  $('#idx').innerHTML = DATA.groups.map((g) => `<optgroup label="${esc(g.name)}">${g.series.map((s) => `<option value="${esc(s.name)}"${s.name === DEFAULT ? ' selected' : ''}>${esc(s.name)}</option>`).join('')}</optgroup>`).join('');
+  const now = new Date(); const tNow = now.getFullYear() * 12 + now.getMonth();
+  $('#priced').value = fromT(tNow); $('#start').value = fromT(tNow + 6);
+  $('#m-src').textContent = DATA.source; $('#m-fy').textContent = FY;
+  renderSource(); render();
+  document.querySelectorAll('#idx, #amt, #priced, #start, #dur').forEach((el) => { el.addEventListener('input', render); el.addEventListener('change', render); });
+  const pick = (tr) => { $('#idx').value = tr.dataset.name; render(); $('#idx').scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); };
+  $('#cmp').addEventListener('click', (e) => { const tr = e.target.closest('tr.pick'); if (tr) pick(tr); });
+  $('#cmp').addEventListener('keydown', (e) => { const tr = e.target.closest('tr.pick'); if (tr && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); pick(tr); } });
+  let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => drawChart(inputs()), 120); });
 })();
 </script>
+<script src="assets/common.js?v=6"></script>
 </body>
 </html>

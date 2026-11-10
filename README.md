@@ -6,7 +6,7 @@ A static website with five pages that update themselves from FRED, with no manua
 |---|---|---|
 | Producer Prices | `site/index.html` | `site/data.json`, built from `series.json` (BLS PPI) |
 | Final Demand (quarterly) | `site/quarterly.html` | `site/data.json` (building-type and trade selling-price indexes, on BLS survey quarters) |
-| Escalation Planner | `site/escalation.html` | `site/data.json` (selling-price indexes) |
+| Escalation Planner | `site/escalation.html` | Construction Analytics (Ed Zarenski) cost index tables, inline in the page; source copy in `data/zarenski-indices-2026-04-14.json`. Used with permission. **Manual update** when Ed publishes a new table. |
 | Spending & Markets | `site/spending.html` | `site/spending.json`, built from `spending.json` (Census construction spending) |
 | Labor & Productivity | `site/labor.html` | `site/labor.json`, built from `labor.json` (BLS jobs, pay, openings) |
 
@@ -37,7 +37,7 @@ A static website with five pages that update themselves from FRED, with no manua
 
 **Cost vs selling price.** Material PPIs are cost indexes and exclude labor, overhead and margin. Building-type and trade-contractor PPIs are selling-price indexes. The Escalation Planner defaults to selling-price indexes and labels material indexes as cost only.
 
-**Escalation Planner.** Midpoint = start + half the duration. Factor = (1 + annual rate) ^ (months from pricing date to midpoint ÷ 12). Trailing rates are compound annual changes between 12-month average index levels.
+**Escalation Planner.** Uses Construction Analytics annual cost indexes (base 2024 = 100, 2026+ are his forecasts), default CA Nonresidential Bldgs. Each annual value sits at mid-year (July); months are interpolated geometrically; dates past the last table year extend at the final annual rate. Midpoint = start + half the duration. Escalation = index at midpoint ÷ index at pricing date − 1. To update: replace the `DATA` object in `site/escalation.html` and the JSON in `data/` with the new table.
 
 **Spending.** Census value put in place, seasonally adjusted annual rate. Year to date sums the not-seasonally-adjusted monthly values. Constant dollars restate each month in the latest month's prices using PPI WPU801 (new nonresidential building construction, a selling-price index). Nonresidential Buildings is the sum of the building markets.
 
