@@ -11,10 +11,11 @@
     { "id": "JTS2300JOR", "name": "Job openings rate, construction", "group": "U.S. pay & hiring", "unit": "pct" },
     { "id": "JTS2300QUR", "name": "Quits rate, construction", "group": "U.S. pay & hiring", "unit": "pct" },
     { "id": "LNU04032231", "name": "Unemployment rate, construction (not seasonally adjusted)", "group": "U.S. pay & hiring", "unit": "pct", "nsa": true },
-    { "id": "LACONS", "name": "All construction, Louisiana", "group": "Louisiana & Baton Rouge", "unit": "jobs" },
-    { "id": "SMU22129402000000001SA", "name": "All construction, Baton Rouge MSA", "group": "Louisiana & Baton Rouge", "unit": "jobs" },
-    { "id": "SMU22129402023620001SA", "name": "Nonresidential building construction, Baton Rouge MSA", "group": "Louisiana & Baton Rouge", "unit": "jobs" },
-    { "id": "SMU22129402023800001SA", "name": "Specialty trade contractors, Baton Rouge MSA", "group": "Louisiana & Baton Rouge", "unit": "jobs" },
-    { "id": "SMU22000002000000003", "name": "Average hourly earnings, construction, Louisiana (not seasonally adjusted)", "group": "Louisiana & Baton Rouge", "unit": "usd", "nsa": true }
+    { "id": "LACONS", "name": "All construction, Louisiana", "group": "Louisiana metros", "unit": "jobs" },
+    { "id": "SMU22129402000000001SA", "name": "All construction, Baton Rouge MSA", "group": "Louisiana metros", "unit": "jobs" },
+    { "id": "SMU22129402023620001SA", "name": "Nonresidential building construction, Baton Rouge MSA", "group": "Louisiana metros", "unit": "jobs" },
+    { "id": "SMU22353802000000001SA", "name": "All construction, New Orleans-Metairie MSA", "group": "Louisiana metros", "unit": "jobs" },
+    { "id": "SMU22291802000000001SA", "name": "All construction, Lafayette MSA", "group": "Louisiana metros", "unit": "jobs" },
+    { "id": "SMU22000002000000003", "name": "Average hourly earnings, construction, Louisiana (not seasonally adjusted)", "group": "Louisiana metros", "unit": "usd", "nsa": true }
   ]
 }
