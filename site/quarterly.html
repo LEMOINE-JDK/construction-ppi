@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LEMOINE Final Demand Dashboard</title>
+<meta name="description" content="Quarterly PPI final demand (selling price) for nonresidential buildings and trade contractors, on BLS survey quarters.">
+<link rel="stylesheet" href="assets/site.css?v=5">
+</head>
+<body>
+<div class="masthead">
+<header class="band">
+  <div class="wrap">
+    <div class="brand">
+      <img src="assets/logo-reversed.svg" alt="LEMOINE" onerror="this.remove()">
+      <h1>Final Demand, Quarterly<small>What contractors charge for nonresidential buildings, on BLS survey quarters</small></h1>
+    </div>
+    <div class="stamp" id="stamp"><strong>Loading data…</strong></div>
+  </div>
+</header>
+<nav class="tabs" aria-label="Dashboards">
+  <div class="wrap"><a href="./">Producer Prices</a><a href="quarterly.html" aria-current="page">Final Demand</a><a href="escalation.html">Escalation Planner</a><a href="spending.html">Spending &amp; Markets</a><a href="labor.html">Labor &amp; Productivity</a></div>
+</nav>
+</div>
+
+<main>
+  <div class="wrap" id="app">
+    <p class="loading" id="loading">Loading the latest FRED data…</p>
+  </div>
+</main>
+
+<footer id="method">
+  <div class="wrap">
+    <h2>Method and sources</h2>
+    <p><b>Final demand vs inputs.</b> PPI final demand for construction measures the price a contractor charges the owner for finished work: materials, labor, equipment, overhead and profit. Input PPIs measure material costs only. Use final demand, not inputs, to represent whole-building cost change. A large input increase often shows up as a much smaller final-demand increase.</p>
+    <p><b>Why quarterly.</b> BLS models the monthly values and corrects them with a contractor survey in January, April, July and October. Each correction revises that month and the two before it. Quarters here end in those survey months: Feb–Apr is Q1, May–Jul is Q2, Aug–Oct is Q3, and Nov–Jan is Q4 of the prior year. Each quarter is the average of its three monthly index values.</p>
+    <p><b>Read complete quarters only.</b> Months after the last survey are modeled and can change sign when the survey lands. Per Ed Zarenski's analysis, most of a quarter's change has typically posted in the survey month, and the correction has reversed the modeled direction in several recent quarters. The quarter in progress is shown faded and is left out of the summary.</p>
+    <p><b>Measures.</b> QoQ = quarter average vs the prior quarter. YoY = quarter average vs the same quarter a year earlier. Annualized = QoQ compounded over four quarters. Trade average = simple average of the four trade-contractor changes.</p>
+    <p id="m-source"></p>
+    <p>Method follows Ed Zarenski's guidance on PPI final demand at edzarenski.com. For internal planning; not a forecast.</p>
+    <p class="tagline">LEMOINE &nbsp;|&nbsp; One mission. <span>Yours.™</span></p>
+  </div>
+</footer>
+
+<script src="assets/common.js?v=5"></script>
+<script>
+(() => {
+  'use strict';
+  const { $, esc, fmtPct, fmtMonth, cssVar, pctChange } = LD;
+  const N = 8; // complete quarters shown in the table
+  const COMPARE = 'WPUIP231200';
+  let D, byId, Q = {}, keys = [], partial = null, state = { view: 'qoq', a: 'WPU801', b: COMPARE };
+
+  const back = (k, n) => { const [y, q] = [+k.slice(0, 4), +k.slice(6)]; const t = y * 4 + (q - 1) - n; return `${Math.floor(t / 4)}-Q${(t % 4) + 1}`; };
+  // Quarterly changes are small, so the color steps are tighter than the annual heatmap.
+  const qCell = (v) => v == null ? 'c-na' : v >= 4 ? 'c-u4' : v >= 2 ? 'c-u3' : v >= 1 ? 'c-u2' : v >= 0.5 ? 'c-u1' : v > -0.5 ? 'c-0' : v > -1 ? 'c-d1' : v > -2 ? 'c-d2' : 'c-d3';
+  const yCell = (v) => v == null ? 'c-na' : v >= 20 ? 'c-u4' : v >= 10 ? 'c-u3' : v >= 5 ? 'c-u2' : v >= 2 ? 'c-u1' : v > -2 ? 'c-0' : v > -5 ? 'c-d1' : v > -10 ? 'c-d2' : 'c-d3';
+  const qoq = (id, k) => pctChange(Q[id]?.[k]?.avg, Q[id]?.[back(k, 1)]?.avg);
+  const yoy = (id, k) => pctChange(Q[id]?.[k]?.avg, Q[id]?.[back(k, 4)]?.avg);
+  const ann = (id, k) => { const a = Q[id]?.[k]?.avg, b = Q[id]?.[back(k, 1)]?.avg; return a && b ? Math.round((Math.pow(a / b, 4) - 1) * 1000) / 10 : null; };
+  const tradeIds = () => D.series.filter((s) => s.kind === 'trade').map((s) => s.id);
+  const tradeAvg = (fn, k) => { const v = tradeIds().map((id) => fn(id, k)); return v.some((x) => x == null) ? null : Math.round(v.reduce((a, b) => a + b, 0) / v.length * 10) / 10; };
+
+  function build() {
+    const ids = D.series.filter((s) => s.kind !== 'material').map((s) => s.id).concat(COMPARE);
+    for (const id of ids) { const s = byId[id]; if (!s) continue; Q[id] = Object.fromEntries(LD.surveyQuarters(D.months, s.history).map((q) => [q.key, q])); }
+    const lead = Object.values(Q.WPU801 || {});
+    keys = lead.filter((q) => q.complete).map((q) => q.key);
+    partial = lead.find((q) => !q.complete) || null;
+  }
+
+  function renderSummary() {
+    const k = keys.at(-1), q = Q.WPU801[k];
+    const tile = (cls, eyebrow, val, sub) => `<div class="kpi ${cls}"><span class="eyebrow">${eyebrow}</span><span class="val num">${val}</span><span class="sub">${sub}</span></div>`;
+    let html = `<section id="summary" aria-labelledby="h-sum"><h2 id="h-sum">Latest complete quarter: ${esc(q.short)} (${esc(q.span)})</h2><p class="lede">Quarter-over-quarter change in the average index. These are selling-price indexes, the right basis for whole-building escalation.</p><div class="kpis">`;
+    const t = (id, label, cls = '') => byId[id] ? tile(cls, label, fmtPct(qoq(id, k)), `${fmtPct(yoy(id, k))} YoY · ${fmtPct(ann(id, k))} annualized`) : '';
+    html += t('WPU801', 'New nonres buildings', 'lead');
+    html += t('WPU801105', 'Health care building');
+    html += t('WPU801102', 'School building');
+    html += tile('', 'Avg of 4 trade contractors', fmtPct(tradeAvg(qoq, k)), `${fmtPct(tradeAvg(yoy, k))} YoY`);
+    if (byId[COMPARE]) html += tile('', 'Nonres inputs (cost only)', fmtPct(qoq(COMPARE, k)), `${fmtPct(yoy(COMPARE, k))} YoY · for comparison`);
+    html += `</div>`;
+    const fy = yoy('WPU801', k), iy = yoy(COMPARE, k);
+    if (fy != null && iy != null) {
+      const gap = Math.round((iy - fy) * 10) / 10;
+      html += `<p class="gap-note">Over the four quarters ending ${esc(q.span)}, material inputs rose <b>${fmtPct(iy)}</b> while the price contractors charge for nonresidential buildings rose <b>${fmtPct(fy)}</b>. ${gap >= 1 ? `Inputs ran ${Math.abs(gap).toFixed(1)} points ahead of final demand, so not all of the material increase reached bid prices.` : gap <= -1 ? `Final demand ran ${Math.abs(gap).toFixed(1)} points ahead of inputs, so labor, overhead or margin added to the increase.` : 'The two moved roughly together.'}</p>`;
+    }
+    if (partial) {
+      const rel = LD.addMonths(partial.end, 1);
+      html += `<p class="note warn" style="margin-top:12px"><b>${esc(partial.short)} is in progress.</b> ${partial.n} of 3 months are reported (modeled values). The survey correction arrives with the ${esc(fmtMonth(partial.end))} data, released by BLS in mid-${esc(LD.MON[+rel.slice(5, 7) - 1])} ${rel.slice(0, 4)}. Do not read the partial quarter as a trend.</p>`;
+    }
+    return html + '</section>';
+  }
+
+  function renderTable() {
+    const shown = keys.slice(-N);
+    const fn = state.view === 'qoq' ? qoq : yoy;
+    const cell = state.view === 'qoq' ? qCell : yCell;
+    const head = `<thead><tr><th scope="col">Series</th>${shown.map((k) => `<th scope="col" title="${esc(Q.WPU801[k].span)}">${esc(Q.WPU801[k].short)}</th>`).join('')}${partial ? `<th scope="col" title="${esc(partial.span)}: ${partial.n} of 3 months, modeled, not yet surveyed" style="opacity:.6">${esc(partial.short)} to date</th>` : ''}<th scope="col" class="cur" title="Latest complete quarter vs same quarter a year earlier">${esc(Q.WPU801[shown.at(-1)].short)} YoY</th></tr></thead>`;
+    const row = (label, id, vals, part, y, cls = 'row') => `<tr class="${cls}"${id ? ` data-id="${esc(id)}" tabindex="0"` : ''}><td>${label}</td>${vals.map((v) => `<td class="cell ${cell(v)}">${fmtPct(v)}</td>`).join('')}${partial ? `<td class="cell" style="opacity:.55;font-style:italic">${fmtPct(part)}</td>` : ''}<td class="cell ${yCell(y)} latest">${fmtPct(y)}</td></tr>`;
+    const nm = (s) => `<span class="nm"><span class="t">${esc(s.name)}</span><span class="id">${esc(s.id)}</span></span>`;
+    const partFor = (id) => partial ? (state.view === 'qoq' ? qoq(id, partial.key) : yoy(id, partial.key)) : null;
+    let body = '', g = null;
+    for (const s of D.series.filter((x) => x.kind !== 'material')) {
+      if (s.group !== g) { body += `<tr class="grp"><th colspan="${shown.length + 3}">${esc(s.group)}</th></tr>`; g = s.group; }
+      body += row(nm(s), s.id, shown.map((k) => fn(s.id, k)), partFor(s.id), yoy(s.id, shown.at(-1)), `row${s.id === state.a ? ' sel' : ''}`);
+    }
+    const tp = partial ? tradeAvg(state.view === 'qoq' ? qoq : yoy, partial.key) : null;
+    body += row('Average of 4 trades', null, shown.map((k) => tradeAvg(fn, k)), tp, tradeAvg(yoy, shown.at(-1)), 'avg');
+    if (byId[COMPARE]) {
+      body += `<tr class="grp"><th colspan="${shown.length + 3}">For comparison: cost index, not final demand</th></tr>`;
+      body += row(nm(byId[COMPARE]), COMPARE, shown.map((k) => fn(COMPARE, k)), partFor(COMPARE), yoy(COMPARE, shown.at(-1)), `row${state.a === COMPARE ? ' sel' : ''}`);
+    }
+    const legend = state.view === 'qoq'
+      ? `<span><i class="c-d3"></i>−2% or less</span><span><i class="c-d2"></i>−1 to −2</span><span><i class="c-d1"></i>−0.5 to −1</span><span><i class="c-0"></i>±0.5</span><span><i class="c-u1"></i>+0.5 to +1</span><span><i class="c-u2"></i>+1 to +2</span><span><i class="c-u3"></i>+2 to +4</span><span><i class="c-u4"></i>+4% or more</span>`
+      : `<span><i class="c-d3"></i>−10% or less</span><span><i class="c-d2"></i>−5 to −10</span><span><i class="c-d1"></i>−2 to −5</span><span><i class="c-0"></i>±2</span><span><i class="c-u1"></i>+2 to +5</span><span><i class="c-u2"></i>+5 to +10</span><span><i class="c-u3"></i>+10 to +20</span><span><i class="c-u4"></i>+20% or more</span>`;
+    return `<section id="table-sec" aria-labelledby="h-tb"><h2 id="h-tb">Quarterly change by building type and trade</h2><p class="lede">Last ${N} complete survey quarters. Click a row to chart it.</p>
+      <div class="toolbar"><span class="eyebrow">Measure</span><div class="seg" role="group" aria-label="Measure"><button type="button" data-view="qoq" aria-pressed="${state.view === 'qoq'}">Quarter over quarter</button><button type="button" data-view="yoy" aria-pressed="${state.view === 'yoy'}">Year over year</button></div></div>
+      <div class="tablebox"><table class="heat" id="t-q">${head}<tbody>${body}</tbody></table></div><div class="legend" aria-label="Color key">${legend}</div></section>`;
+  }
+
+  function options(selected, allowNone) {
+    const list = D.series.filter((s) => s.kind !== 'material').concat(byId[COMPARE] ? [byId[COMPARE]] : []);
+    return (allowNone ? '<option value="">None</option>' : '') + list.map((s) => `<option value="${esc(s.id)}"${s.id === selected ? ' selected' : ''}>${esc(s.name)}${s.kind === 'material' ? ' (cost only)' : ''}</option>`).join('');
+  }
+
+  function renderChartShell() {
+    return `<section id="chart-sec" aria-labelledby="h-ch"><h2 id="h-ch">Quarter-over-quarter change</h2><p class="lede">Last 12 complete quarters, plus the quarter in progress (outlined, modeled).</p>
+      <div class="toolbar"><label class="f">Series<select id="sel-a">${options(state.a)}</select></label><label class="f">Compare with<select id="sel-b">${options(state.b, true)}</select></label></div>
+      <div class="chartbox"><svg id="qchart" role="img" aria-label="Quarterly change bar chart"></svg><div class="keyline" id="qkey"></div></div></section>`;
+  }
+
+  function drawBars() {
+    const svg = $('#qchart'); if (!svg) return;
+    const box = svg.getBoundingClientRect(); const W = Math.round(box.width) || 800, H = Math.round(box.height) || 320;
+    const m = { l: 48, r: 10, t: 22, b: 30 };
+    const ks = keys.slice(-12).concat(partial ? [partial.key] : []);
+    const series = [state.a, state.b].filter((id) => id && byId[id]);
+    const colors = [cssVar('--gold'), cssVar('--midblue')];
+    const vals = series.map((id) => ks.map((k) => qoq(id, k)));
+    const all = vals.flat().filter((v) => v != null);
+    let ticks = LD.niceTicks(Math.min(0, ...all), Math.max(0, ...all), 5); const lo = ticks[0], hi = ticks.at(-1);
+    const y = (v) => m.t + (1 - (v - lo) / (hi - lo || 1)) * (H - m.t - m.b);
+    const band = (W - m.l - m.r) / ks.length; const gw = band * 0.72; const bw = gw / series.length;
+    const ink2 = cssVar('--ink-2'), rule = cssVar('--rule'), ink = cssVar('--ink');
+    let g = '';
+    for (const t of ticks) g += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(t)}" y2="${y(t)}" stroke="${t === 0 ? ink : rule}" stroke-width="${t === 0 ? 1.2 : 1}"/><text x="${m.l - 8}" y="${y(t) + 4}" text-anchor="end" font-size="11" fill="${ink2}">${t}%</text>`;
+    const showLabels = band >= 44;
+    ks.forEach((k, i) => {
+      const x0 = m.l + i * band + (band - gw) / 2; const isPart = partial && k === partial.key;
+      series.forEach((id, j) => {
+        const v = vals[j][i]; if (v == null) return;
+        const x = x0 + j * bw, top = y(Math.max(v, 0)), h = Math.max(1, Math.abs(y(v) - y(0)));
+        g += isPart ? `<rect x="${x + 1}" y="${top}" width="${bw - 2}" height="${h}" fill="none" stroke="${colors[j]}" stroke-width="1.5" stroke-dasharray="3 2"><title>${esc(byId[id].name)} ${esc(Q.WPU801[k]?.short || k)} to date: ${fmtPct(v)} (modeled)</title></rect>`
+          : `<rect x="${x + 1}" y="${top}" width="${bw - 2}" height="${h}" fill="${colors[j]}"><title>${esc(byId[id].name)} ${esc(Q.WPU801[k].short)} (${esc(Q.WPU801[k].span)}): ${fmtPct(v)}</title></rect>`;
+        if (showLabels && series.length === 1) g += `<text x="${x + bw / 2}" y="${v >= 0 ? top - 4 : top + h + 11}" text-anchor="middle" font-size="10" fill="${ink2}">${v.toFixed(1)}</text>`;
+      });
+      const q = Q.WPU801[k]; g += `<text x="${m.l + i * band + band / 2}" y="${H - 10}" text-anchor="middle" font-size="11" fill="${ink2}"${isPart ? ' font-style="italic"' : ''}>${esc(q ? q.short : k)}</text>`;
+    });
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.innerHTML = g;
+    $('#qkey').innerHTML = series.map((id, j) => `<span><i style="background:${colors[j]}"></i>${esc(byId[id].name)} (${esc(id)})</span>`).join('') + (partial ? `<span><i style="border:1.5px dashed ${ink2};height:8px;background:none"></i>Quarter in progress</span>` : '');
+  }
+
+  function select(id) {
+    state.a = id; $('#sel-a').value = id; drawBars();
+    document.querySelectorAll('#t-q tr.row').forEach((r) => r.classList.toggle('sel', r.dataset.id === id));
+  }
+
+  LD.loadJSON('data.json').then((data) => {
+    D = data; byId = Object.fromEntries(D.series.map((s) => [s.id, s]));
+    build();
+    if (!keys.length) throw new Error('no complete quarters in data');
+    LD.setStamp(D.dataMonthLabel, D.generatedAt);
+    $('#app').innerHTML = renderSummary() + renderTable() + renderChartShell();
+    $('#m-source').textContent = `Source: ${D.source} Data checked ${new Date(D.generatedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.`;
+    drawBars();
+    document.addEventListener('click', (e) => {
+      const v = e.target.closest('[data-view]');
+      if (v) { state.view = v.dataset.view; $('#table-sec').outerHTML = renderTable(); return; }
+      const tr = e.target.closest('#t-q tr.row'); if (tr) select(tr.dataset.id);
+    });
+    document.addEventListener('keydown', (e) => { const tr = e.target.closest?.('#t-q tr.row'); if (tr && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); select(tr.dataset.id); } });
+    $('#sel-a').addEventListener('change', (e) => select(e.target.value));
+    $('#sel-b').addEventListener('change', (e) => { state.b = e.target.value; drawBars(); });
+    LD.onRedraw(drawBars);
+  }).catch((err) => {
+    $('#loading').textContent = `The data file could not be loaded (${err.message}). Try again in a minute; if it persists, check the latest GitHub Actions run.`;
+    $('#stamp').innerHTML = '<strong>Data unavailable</strong>';
+  });
+})();
+</script>
+</body>
+</html>

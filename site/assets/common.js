@@ -19,6 +19,29 @@
   const addMonths = (ym, n) => { const [y, m] = ym.split('-').map(Number); const t = y * 12 + (m - 1) + n; return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, '0')}`; };
   const monthDiff = (a, b) => { const [ya, ma] = a.split('-').map(Number); const [yb, mb] = b.split('-').map(Number); return (yb - ya) * 12 + (mb - ma); };
 
+  /**
+   * BLS survey quarters for construction final-demand PPIs. BLS corrects the modeled monthly values with a
+   * contractor survey in January, April, July and October, so each quarter ends in one of those months:
+   * Feb–Apr = Q1, May–Jul = Q2, Aug–Oct = Q3, Nov–Jan = Q4 (the January value closes the prior year's Q4).
+   * Returns ascending [{key, short, span, end, avg, n, complete}] for every quarter touched by the data.
+   */
+  function surveyQuarters(months, values) {
+    const map = new Map(months.map((m, i) => [m, values[i]]));
+    let last = null; for (let i = values.length - 1; i >= 0; i--) if (values[i] != null) { last = months[i]; break; }
+    if (!last) return [];
+    let end = last; while (![1, 4, 7, 10].includes(+end.slice(5, 7))) end = addMonths(end, 1);
+    const out = [];
+    for (let e = end; monthDiff(months[0], e) >= 2; e = addMonths(e, -3)) {
+      const ms = [addMonths(e, -2), addMonths(e, -1), e];
+      const vals = ms.map((m) => map.get(m)).filter((v) => v != null);
+      if (!vals.length) continue;
+      const em = +e.slice(5, 7); const q = { 1: 4, 4: 1, 7: 2, 10: 3 }[em]; const y = em === 1 ? +e.slice(0, 4) - 1 : +e.slice(0, 4);
+      out.unshift({ key: `${y}-Q${q}`, short: `Q${q} '${String(y).slice(2)}`, span: `${MON[+ms[0].slice(5, 7) - 1]}–${MON[em - 1]} ${e.slice(0, 4)}`, end: e, avg: vals.reduce((a, b) => a + b, 0) / vals.length, n: vals.length, complete: vals.length === 3 });
+    }
+    return out;
+  }
+  const pctChange = (a, b) => (a == null || b == null || b === 0 ? null : Math.round((a / b - 1) * 1000) / 10);
+
   async function loadJSON(name) {
     if (window.__DATA && window.__DATA[name]) return window.__DATA[name];
     const res = await fetch(name, { cache: 'no-cache' });
@@ -118,5 +141,5 @@
     onScroll();
   }
 
-  window.LD = { MON, $, esc, fmtPct, fmtPts, fmtIdx, fmtNum, fmtSigned, fmtMoney, fmtBil, fmtMonth, fmtMonthShort, cssVar, tone, addMonths, monthDiff, loadJSON, setStamp, niceTicks, spark, lineChart, onRedraw };
+  window.LD = { MON, $, esc, surveyQuarters, pctChange, fmtPct, fmtPts, fmtIdx, fmtNum, fmtSigned, fmtMoney, fmtBil, fmtMonth, fmtMonthShort, cssVar, tone, addMonths, monthDiff, loadJSON, setStamp, niceTicks, spark, lineChart, onRedraw };
 })();

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>LEMOINE Construction PPI Dashboard</title>
 <meta name="description" content="Producer Price Index tracking for construction materials, building types and trade contractors. Updated automatically from FRED.">
-<link rel="stylesheet" href="assets/site.css?v=4">
+<link rel="stylesheet" href="assets/site.css?v=5">
 </head>
 <body>
 <div class="masthead">
@@ -19,7 +19,7 @@
   </div>
 </header>
 <nav class="tabs" aria-label="Dashboards">
-  <div class="wrap"><a href="./" aria-current="page">Producer Prices</a><a href="escalation.html">Escalation Planner</a><a href="spending.html">Spending &amp; Markets</a><a href="labor.html">Labor &amp; Productivity</a></div>
+  <div class="wrap"><a href="./" aria-current="page">Producer Prices</a><a href="quarterly.html">Final Demand</a><a href="escalation.html">Escalation Planner</a><a href="spending.html">Spending &amp; Markets</a><a href="labor.html">Labor &amp; Productivity</a></div>
 </nav>
 <nav class="jump" aria-label="Sections">
   <div class="wrap">
@@ -41,14 +41,14 @@
     <dl id="m-cols"></dl>
     <p><b>Cost vs selling price.</b> <b>Material inputs</b> are cost indexes: what contractors pay for materials, excluding labor, overhead and margin. <b>Building types</b> and <b>trade contractors</b> are selling-price indexes: what contractors charge for finished work. Use the selling-price series, not the material series, to escalate a whole-building budget. When inputs rise faster than selling prices, contractor margins are being squeezed.</p>
     <p><b>Flags.</b> <span class="flag">No new price</span> marks a series whose index has been identical for 3 or more months, which usually means BLS carried a value forward rather than prices holding flat. <span class="flag info">Note</span> marks a series with a data caveat; hover for details.</p>
-    <p><b>Quarterly view.</b> BLS revises building-type and trade indexes each January, April, July and October, so quarter-to-quarter comparisons are more reliable than month-to-month.</p>
+    <p><b>Quarterly view.</b> BLS corrects the modeled monthly building-type and trade indexes with a contractor survey each January, April, July and October. Quarters therefore end in those months (Feb–Apr, May–Jul, Aug–Oct, Nov–Jan), and only complete quarters are shown. See the <a href="quarterly.html">Final Demand</a> page for the full quarterly analysis.</p>
     <p id="m-source"></p>
     <p>Table layout adapted from Ed Zarenski's PPI tables at edzarenski.com. This dashboard is for internal planning and is not a forecast.</p>
     <p class="tagline">LEMOINE &nbsp;|&nbsp; One mission. <span>Yours.™</span></p>
   </div>
 </footer>
 
-<script src="assets/common.js?v=4"></script>
+<script src="assets/common.js?v=5"></script>
 <script>
 (() => {
   'use strict';
@@ -110,28 +110,21 @@
       <div class="tablebox"><table class="heat" id="t-mat">${heatHead()}<tbody>${heatRows(list, { groups: state.sort === 'group' })}</tbody></table></div>${legend()}</section>`;
   }
 
-  // Quarterly: average index per complete calendar quarter; YoY vs same quarter a year earlier, plus latest QoQ.
-  function quarters(s) {
-    const out = {};
-    D.months.forEach((m, i) => { const v = s.history[i]; if (v == null) return; const q = `${m.slice(0, 4)}-Q${Math.floor((+m.slice(5, 7) - 1) / 3) + 1}`; (out[q] ||= []).push(v); });
-    const full = {}; for (const [q, arr] of Object.entries(out)) if (arr.length === 3) full[q] = arr.reduce((a, b) => a + b, 0) / 3;
-    return full;
-  }
-  const prevQ = (q, n) => { let [y, k] = [+q.slice(0, 4), +q.slice(6)]; let t = y * 4 + (k - 1) - n; return `${Math.floor(t / 4)}-Q${(t % 4) + 1}`; };
-  const qLabel = (q) => `Q${q.slice(6)} '${q.slice(2, 4)}`;
-  const pct = (a, b) => a == null || b == null ? null : Math.round((a / b - 1) * 1000) / 10;
-
+  // Quarterly: BLS survey quarters (ending Jan, Apr, Jul, Oct). Complete quarters only; YoY vs same quarter a year
+  // earlier, plus the latest complete quarter vs the prior quarter. Full detail lives on the Final Demand page.
   function quarterTable(list) {
-    const qs = list.map(quarters);
-    const allQ = [...new Set(qs.flatMap((o) => Object.keys(o)))].sort();
-    const shown = allQ.slice(-6);
-    const lastQ = shown.at(-1);
-    const rowVals = (o) => [...shown.map((q) => pct(o[q], o[prevQ(q, 4)])), pct(o[lastQ], o[prevQ(lastQ, 1)])];
-    let html = `<thead><tr><th scope="col">Series</th>${shown.map((q) => `<th scope="col" title="Average of ${qLabel(q)} vs same quarter a year earlier">${qLabel(q)} YoY</th>`).join('')}<th scope="col" class="cur" title="${qLabel(lastQ)} vs prior quarter">${qLabel(lastQ)} QoQ</th></tr></thead><tbody>`;
+    const qs = list.map((s) => LD.surveyQuarters(D.months, s.history).filter((q) => q.complete));
+    const keys = [...new Set(qs.flatMap((arr) => arr.map((q) => q.key)))].sort();
+    const shown = keys.slice(-6); const lastQ = shown.at(-1);
+    const byKey = qs.map((arr) => Object.fromEntries(arr.map((q) => [q.key, q])));
+    const back = (k, n) => { const [y, q] = [+k.slice(0, 4), +k.slice(6)]; const t = y * 4 + (q - 1) - n; return `${Math.floor(t / 4)}-Q${(t % 4) + 1}`; };
+    const meta = Object.fromEntries(qs.flat().map((q) => [q.key, q]));
+    const rowVals = (o) => [...shown.map((k) => LD.pctChange(o[k]?.avg, o[back(k, 4)]?.avg)), LD.pctChange(o[lastQ]?.avg, o[back(lastQ, 1)]?.avg)];
+    let html = `<thead><tr><th scope="col">Series</th>${shown.map((k) => `<th scope="col" title="${esc(meta[k].span)} average vs same quarter a year earlier">${esc(meta[k].short)} YoY</th>`).join('')}<th scope="col" class="cur" title="${esc(meta[lastQ].span)} vs prior quarter">${esc(meta[lastQ].short)} QoQ</th></tr></thead><tbody>`;
     let lastGroup = null; const tradeRows = [];
     list.forEach((s, i) => {
       if (s.group !== lastGroup) { html += `<tr class="grp"><th colspan="${shown.length + 2}">${esc(s.group)}</th></tr>`; lastGroup = s.group; }
-      const vals = rowVals(qs[i]); if (s.kind === 'trade') tradeRows.push(vals);
+      const vals = rowVals(byKey[i]); if (s.kind === 'trade') tradeRows.push(vals);
       html += `<tr class="row" data-id="${esc(s.id)}" tabindex="0"><td><span class="nm"><span class="t">${esc(s.name)}</span><span class="id">${esc(s.id)}</span></span></td>${vals.map((v, k) => `<td class="cell ${k === vals.length - 1 ? '' : cellClass(v)}${k === vals.length - 1 ? ' latest' : ''}">${fmtPct(v)}</td>`).join('')}</tr>`;
     });
     if (tradeRows.length === 4) {

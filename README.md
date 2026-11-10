@@ -1,10 +1,11 @@
 # LEMOINE Construction Dashboards
 
-A static website with four pages that update themselves from FRED, with no manual steps:
+A static website with five pages that update themselves from FRED, with no manual steps:
 
 | Page | File | Data |
 |---|---|---|
 | Producer Prices | `site/index.html` | `site/data.json`, built from `series.json` (BLS PPI) |
+| Final Demand (quarterly) | `site/quarterly.html` | `site/data.json` (building-type and trade selling-price indexes, on BLS survey quarters) |
 | Escalation Planner | `site/escalation.html` | `site/data.json` (selling-price indexes) |
 | Spending & Markets | `site/spending.html` | `site/spending.json`, built from `spending.json` (Census construction spending) |
 | Labor & Productivity | `site/labor.html` | `site/labor.json`, built from `labor.json` (BLS jobs, pay, openings) |
@@ -32,7 +33,7 @@ A static website with four pages that update themselves from FRED, with no manua
 | YTD | Average from January through the latest month vs the same months a year earlier |
 | Last 3 months | Average of the latest 3 months vs the same 3 months a year earlier |
 | Latest month | Latest month's index vs the same month a year earlier |
-| Quarterly view | Average of each complete quarter vs the same quarter a year earlier, plus the latest quarter vs the prior quarter |
+| Quarterly (survey quarters) | Quarters end in the BLS survey months Jan, Apr, Jul, Oct (Feb–Apr = Q1, May–Jul = Q2, Aug–Oct = Q3, Nov–Jan = Q4 of the prior year). Quarter = average of its 3 months. Only complete quarters are summarized; the quarter in progress is modeled and shown faded. |
 
 **Cost vs selling price.** Material PPIs are cost indexes and exclude labor, overhead and margin. Building-type and trade-contractor PPIs are selling-price indexes. The Escalation Planner defaults to selling-price indexes and labels material indexes as cost only.
 
