@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>LEMOINE Construction Labor Dashboard</title>
 <meta name="description" content="Construction jobs, pay, hiring and productivity, nationally and in Baton Rouge, New Orleans and Lafayette. Updated automatically.">
-<link rel="stylesheet" href="assets/site.css?v=6">
+<link rel="stylesheet" href="assets/site.css?v=7">
 </head>
 <body>
 <div class="masthead">
@@ -40,11 +40,11 @@
   </div>
 </footer>
 
-<script src="assets/common.js?v=6"></script>
+<script src="assets/common.js?v=7"></script>
 <script>
 (() => {
   'use strict';
-  const { $, esc, fmtPct, fmtPts, fmtNum, fmtSigned, fmtMonth, cssVar, spark, tone } = LD;
+  const { $, esc, fmtPct, fmtPts, fmtNum, fmtSigned, fmtMonth, cssVar, spark, tone, moved } = LD;
   let D, byId, state = { id: 'SMU22129402000000001SA', range: 60 };
 
   const fmtVal = (s, v) => v == null ? '–' : s.unit === 'jobs' ? fmtNum(v, 1) + 'K' : s.unit === 'usd' ? '$' + v.toFixed(2) : v.toFixed(1) + '%';
@@ -54,19 +54,37 @@
     return `<div class="kpi ${cls}"><span class="eyebrow">${eyebrow}</span><span class="val num">${val}</span><span class="sub">${sub}</span>${values ? spark(values) : ''}</div>`;
   }
 
+  function narrative() {
+    const us = byId.USCONS, nb = byId.CES2023620001, ns = byId.CES2023800201, ahe = byId.CES2000000003, jor = byId.JTS2300JOR, un = byId.LNU04032231, P = D.productivity;
+    const people = (k) => fmtNum(Math.round(k * 10) * 100); // thousands -> people, to the nearest hundred
+    const delta = (k) => (k == null ? 'no change reported' : Math.abs(k) < 0.05 ? 'unchanged' : `${k > 0 ? 'up' : 'down'} ${people(Math.abs(k))}`);
+    const p = [];
+    if (us) {
+      let t = `<b>${esc(LD.fmtMonthLong(us.lastMonth))} jobs.</b> U.S. construction employment was <b>${fmtNum(us.latest / 1000, 2)} million</b>, ${delta(us.momAbs)} from the prior month and ${moved(us.yoyPct, 'up', 'down')} from a year ago.`;
+      if (nb && ns) t += ` Nonresidential building jobs are ${moved(nb.yoyPct, 'up', 'down')} and nonresidential specialty trade jobs ${moved(ns.yoyPct, 'up', 'down')} year over year.`;
+      if (ahe) t += ` Average hourly earnings reached $${ahe.latest.toFixed(2)}, ${moved(ahe.yoyPct, 'up', 'down')}.`;
+      p.push(t);
+    }
+    const metros = [['SMU22129402000000001SA', 'Baton Rouge'], ['SMU22353802000000001SA', 'New Orleans'], ['SMU22291802000000001SA', 'Lafayette'], ['LACONS', 'Louisiana statewide']].map(([id, n]) => [byId[id], n]).filter(([s]) => s && s.latest != null);
+    if (metros.length) p.push(`<b>Louisiana, ${esc(LD.fmtMonthLong(metros[0][0].lastMonth))}.</b> Construction employment, with the change from a year ago: ${LD.joinList(metros.map(([s, n]) => `${n} ${people(s.latest)} (${fmtPct(s.yoyPct)})`))}. Metro figures come from a smaller survey and move more month to month.`);
+    let t = '';
+    if (jor) t += `The construction job openings rate was ${jor.latest.toFixed(1)}% in ${esc(LD.fmtMonthLong(jor.lastMonth))}, ${jor.yoyAbs == null ? '' : Math.abs(jor.yoyAbs) < 0.05 ? 'the same as' : `${jor.yoyAbs > 0 ? 'up' : 'down'} ${Math.abs(jor.yoyAbs).toFixed(1)} points from`} a year earlier.`;
+    if (un) t += ` Construction unemployment was ${un.latest.toFixed(1)}% (not seasonally adjusted).`;
+    if (t) p.push(`<b>Hiring.</b> ${t.trim()}`);
+    if (P.jobsYoy != null && P.volumeYoy != null) p.push(`<b>Productivity.</b> Over the past year, nonresidential building jobs changed <b>${fmtPct(P.jobsYoy)}</b> while real nonresidential building volume changed <b>${fmtPct(P.volumeYoy)}</b>, so output per worker moved <b>${fmtPct(P.perWorkerYoy)}</b> (through ${esc(fmtMonth(P.latestMonth))}). ${P.jobsYoy > P.volumeYoy ? 'Headcount is growing faster than real work put in place.' : 'Real work put in place is growing faster than headcount.'}`);
+    return LD.readout(p);
+  }
+
   function renderSummary() {
-    const us = byId.USCONS, nb = byId.CES2023620001, ns = byId.CES2023800201, ahe = byId.CES2000000003, jor = byId.JTS2300JOR, br = byId.SMU22129402000000001SA, P = D.productivity;
+    const us = byId.USCONS, nb = byId.CES2023620001, ns = byId.CES2023800201, ahe = byId.CES2000000003, jor = byId.JTS2300JOR, br = byId.SMU22129402000000001SA;
     const nonresJobs = nb && ns ? nb.latest + ns.latest : null;
-    let html = `<section id="summary" aria-labelledby="h-sum"><h2 id="h-sum">Construction labor, ${esc(D.dataMonthLabel)}</h2><p class="lede">Latest month for each series. Sparklines show the last 25 months.</p><div class="kpis">`;
+    let html = `<section id="summary" aria-labelledby="h-sum"><h2 id="h-sum">Construction labor, ${esc(D.dataMonthLabel)}</h2>${narrative()}<p class="lede">Latest month for each series. Sparklines show the last 25 months.</p><div class="kpis">`;
     if (br) html += kpi('lead', 'Baton Rouge construction jobs', fmtVal(br, br.latest), `${fmtPct(br.yoyPct)} YoY · ${fmtMonth(br.lastMonth)}`, br.history);
     if (us) html += kpi('', 'U.S. construction jobs', fmtNum(us.latest / 1000, 2) + 'M', `${fmtPct(us.yoyPct)} YoY · ${fmtChg(us, us.momAbs)} MoM`, us.history);
     if (nonresJobs) html += kpi('', 'U.S. nonres building + trades jobs', fmtNum(nonresJobs / 1000, 2) + 'M', `Building ${fmtPct(nb.yoyPct)}, trades ${fmtPct(ns.yoyPct)} YoY`);
     if (ahe) html += kpi('', 'Avg hourly earnings, U.S.', fmtVal(ahe, ahe.latest), `${fmtPct(ahe.yoyPct)} YoY`, ahe.history);
     if (jor) html += kpi('', 'Job openings rate', fmtVal(jor, jor.latest), `${fmtPts(jor.yoyAbs)} vs a year ago · ${fmtMonth(jor.lastMonth)}`, jor.history);
     html += `</div>`;
-    if (P.jobsYoy != null && P.volumeYoy != null) {
-      html += `<p class="gap-note">Over the past year, nonresidential building jobs changed <b>${fmtPct(P.jobsYoy)}</b> while real nonresidential building volume changed <b>${fmtPct(P.volumeYoy)}</b>, so output per worker moved <b>${fmtPct(P.perWorkerYoy)}</b> (through ${fmtMonth(P.latestMonth)}). ${P.jobsYoy > P.volumeYoy ? 'Headcount is growing faster than real work put in place.' : 'Real work put in place is growing faster than headcount.'}</p>`;
-    }
     return html + '</section>';
   }
 

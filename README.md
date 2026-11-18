@@ -21,7 +21,7 @@ A static website with five pages that update themselves from FRED, with no manua
 | `.github/workflows/update.yml` | Runs the pull twice a week, commits any new data, and publishes `site/` to GitHub Pages. |
 | `.github/workflows/find-series.yml`, `scripts/find-series.mjs` | Manual utility to look up FRED series IDs and Census spending codes. |
 
-**Schedule.** Mondays and Thursdays at 15:17 UTC. BLS releases PPI mid-month, jobs on the first Friday, and Census spending on the first business day, so new data appears within a few days. Every run commits `last-checked.txt`, which also stops GitHub from disabling the schedule for inactivity.
+**Schedule.** Mondays and Thursdays at 15:17 UTC, plus daily on the 12th through 16th of each month (PPI release week). GitHub often starts scheduled runs a few hours late. BLS releases PPI mid-month, jobs on the first Friday, and Census spending on the first business day, so new data appears within a few days. Every run commits `last-checked.txt`, which also stops GitHub from disabling the schedule for inactivity.
 
 ## Method
 
@@ -42,6 +42,8 @@ A static website with five pages that update themselves from FRED, with no manua
 **Spending.** Census value put in place, seasonally adjusted annual rate. Year to date sums the not-seasonally-adjusted monthly values. Constant dollars restate each month in the latest month's prices using PPI WPU801 (new nonresidential building construction, a selling-price index). Nonresidential Buildings is the sum of the building markets.
 
 **Productivity.** Real Nonresidential Buildings spending divided by nonresidential building plus nonresidential specialty trade jobs. Indexes use 2019 average = 100.
+
+**What the data says.** Each data page opens with a short plain-English readout written by fixed rules from the latest data file, so it rewrites itself on every refresh. No AI runs on the site.
 
 **Flags.** A PPI series with an identical index value for 3 or more straight months is marked "No new price," since that usually means BLS carried a value forward.
 

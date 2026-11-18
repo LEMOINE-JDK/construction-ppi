@@ -17,6 +17,12 @@
   const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const tone = (v) => (v == null ? '' : v > 0 ? 'pos' : v < 0 ? 'neg' : '');
   const addMonths = (ym, n) => { const [y, m] = ym.split('-').map(Number); const t = y * 12 + (m - 1) + n; return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, '0')}`; };
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const fmtMonthLong = (ym) => (ym ? `${MONTHS[+ym.slice(5, 7) - 1]} ${ym.slice(0, 4)}` : '–');
+  // Plain-English pieces for the auto-written "What the data says" readout on each page.
+  const moved = (v, up = 'rose', down = 'fell') => (v == null || isNaN(v) ? 'had no reading' : Math.abs(v) < 0.05 ? 'held flat' : `${v > 0 ? up : down} ${Math.abs(v).toFixed(1)}%`);
+  const joinList = (a) => (a.length < 2 ? a.join('') : a.length === 2 ? a.join(' and ') : `${a.slice(0, -1).join(', ')}, and ${a.at(-1)}`);
+  const readout = (paras) => `<div class="readout" id="readout" aria-label="What the data says"><span class="eyebrow">What the data says</span>${paras.filter(Boolean).map((t) => `<p>${t}</p>`).join('')}</div>`;
   const monthDiff = (a, b) => { const [ya, ma] = a.split('-').map(Number); const [yb, mb] = b.split('-').map(Number); return (yb - ya) * 12 + (mb - ma); };
 
   /**
@@ -141,5 +147,5 @@
     onScroll();
   }
 
-  window.LD = { MON, $, esc, surveyQuarters, pctChange, fmtPct, fmtPts, fmtIdx, fmtNum, fmtSigned, fmtMoney, fmtBil, fmtMonth, fmtMonthShort, cssVar, tone, addMonths, monthDiff, loadJSON, setStamp, niceTicks, spark, lineChart, onRedraw };
+  window.LD = { MON, MONTHS, fmtMonthLong, moved, joinList, readout, $, esc, surveyQuarters, pctChange, fmtPct, fmtPts, fmtIdx, fmtNum, fmtSigned, fmtMoney, fmtBil, fmtMonth, fmtMonthShort, cssVar, tone, addMonths, monthDiff, loadJSON, setStamp, niceTicks, spark, lineChart, onRedraw };
 })();

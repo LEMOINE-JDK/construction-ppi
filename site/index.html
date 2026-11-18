@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>LEMOINE Construction PPI Dashboard</title>
 <meta name="description" content="Producer Price Index tracking for construction materials, building types and trade contractors. Updated automatically from FRED.">
-<link rel="stylesheet" href="assets/site.css?v=6">
+<link rel="stylesheet" href="assets/site.css?v=7">
 </head>
 <body>
 <div class="masthead">
@@ -48,11 +48,11 @@
   </div>
 </footer>
 
-<script src="assets/common.js?v=6"></script>
+<script src="assets/common.js?v=7"></script>
 <script>
 (() => {
   'use strict';
-  const { $, esc, fmtPct, fmtIdx, fmtMonth, fmtMoney, cssVar, spark } = LD;
+  const { $, esc, fmtPct, fmtIdx, fmtMonth, fmtMoney, cssVar, spark, moved } = LD;
   const cellClass = (v) => v == null ? 'c-na' : v >= 20 ? 'c-u4' : v >= 10 ? 'c-u3' : v >= 5 ? 'c-u2' : v >= 2 ? 'c-u1' : v > -2 ? 'c-0' : v > -5 ? 'c-d1' : v > -10 ? 'c-d2' : 'c-d3';
   const fredUrl = (id) => `https://fred.stlouisfed.org/series/${encodeURIComponent(id)}`;
 
@@ -68,21 +68,48 @@
     return f;
   }
 
+  function narrative() {
+    const S = D.summary, L = D.dataMonth, Ly = +L.slice(0, 4);
+    const lead = byId.WPUIP231200, bldg = byId.WPU801, diesel = byId.WPU057303;
+    const prev = LD.fmtMonthLong(LD.addMonths(L, -1)).split(' ')[0], yr = LD.fmtMonthLong(LD.addMonths(L, -12));
+    const nm = (s) => esc(s.short || s.name);
+    const p = [];
+    if (bldg) {
+      let t = `<b>${esc(LD.fmtMonthLong(L))} producer prices.</b> Selling prices for new nonresidential buildings ${moved(bldg.mom)} from ${prev} and stand ${Math.abs(bldg.cols.latest ?? 0).toFixed(1)}% ${(bldg.cols.latest ?? 0) >= 0 ? 'above' : 'below'} ${yr}.`;
+      if (bldg.cols.ytd != null) t += ` Year to date they are running ${Math.abs(bldg.cols.ytd).toFixed(1)}% ${bldg.cols.ytd >= 0 ? 'above' : 'below'} the same months of ${Ly - 1}.`;
+      if (D.tradeAvg?.latest != null) t += ` The four trade contractor indexes averaged ${fmtPct(D.tradeAvg.latest)} year over year.`;
+      p.push(t);
+    }
+    const mats = D.series.filter((s) => s.kind === 'material' && s.cols.latest != null);
+    const steady = mats.filter((s) => !s.volatile && s.id !== 'WPUIP231200');
+    const up = [...steady].sort((a, b) => b.cols.latest - a.cols.latest).slice(0, 3).filter((s) => s.cols.latest > 0);
+    const dn = [...steady].sort((a, b) => a.cols.latest - b.cols.latest).slice(0, 3).filter((s) => s.cols.latest < 0);
+    let t = `<b>Materials and equipment.</b> ${S.up} of ${S.materialCount} cost indexes are higher than a year ago and ${S.down} are lower; the median change is ${fmtPct(S.medianLatest)}.`;
+    if (lead) t += ` Inputs to nonresidential construction as a whole ${moved(lead.cols.latest)} year over year.`;
+    if (up.length) t += ` Largest increases: ${LD.joinList(up.map((s) => `${nm(s)} (${fmtPct(s.cols.latest)})`))}.`;
+    if (dn.length) t += ` ${dn.length === 1 ? 'Only decline' : 'Declines'}: ${LD.joinList(dn.map((s) => `${nm(s)} (${fmtPct(s.cols.latest)})`))}.`;
+    if (diesel?.cols.latest != null) t += ` Diesel, which swings sharply, ${moved(diesel.cols.latest)} year over year.`;
+    p.push(t);
+    if (lead && bldg && lead.cols.latest != null && bldg.cols.latest != null) {
+      const gap = Math.round((lead.cols.latest - bldg.cols.latest) * 10) / 10;
+      p.push(`<b>Cost vs price.</b> Input costs are ${gap >= 0 ? 'outpacing' : 'trailing'} building prices by <b>${Math.abs(gap).toFixed(1)} points</b> year over year. ${gap >= 2 ? 'That gap is margin pressure on fixed-price and GMax work.' : gap <= -2 ? 'Contractor pricing is running ahead of input costs.' : 'The two are moving roughly together.'}`);
+    }
+    const stale = D.series.filter((s) => s.staleSince);
+    if (stale.length) p.push(`${stale.length === 1 ? 'One series shows' : `${stale.length} series show`} no new price for three months or more, likely a BLS carry-forward: ${LD.joinList(stale.map(nm))}.`);
+    return LD.readout(p);
+  }
+
   function renderSummary() {
     const S = D.summary;
     const lead = byId.WPUIP231200, bldg = byId.WPU801, diesel = byId.WPU057303;
     const tile = (cls, eyebrow, val, sub, s) => `<div class="kpi ${cls}"><span class="eyebrow">${eyebrow}</span><span class="val num">${val}</span><span class="sub">${sub}</span>${s ? spark(s.history) : ''}</div>`;
-    let html = `<section id="summary" aria-labelledby="h-sum"><h2 id="h-sum">Where prices stand, ${esc(D.dataMonthLabel)}</h2><p class="lede">Year-over-year change for the latest reported month. Sparklines show the last 25 months of the index.</p><div class="kpis">`;
+    let html = `<section id="summary" aria-labelledby="h-sum"><h2 id="h-sum">Where prices stand, ${esc(D.dataMonthLabel)}</h2>${narrative()}<p class="lede">Year-over-year change for the latest reported month. Sparklines show the last 25 months of the index.</p><div class="kpis">`;
     if (lead) html += tile('lead', 'Nonres construction inputs', fmtPct(lead.cols.latest), `${fmtPct(lead.mom)} vs prior month · cost index`, lead);
     html += tile('', `Median of ${S.materialCount} materials`, fmtPct(S.medianLatest), `${S.up} up, ${S.down} down year over year`);
     if (bldg) html += tile('', 'Nonres building prices', fmtPct(bldg.cols.latest), 'What contractors charge · selling price', bldg);
     if (D.tradeAvg) html += tile('', 'Avg of 4 trade contractors', fmtPct(D.tradeAvg.latest), 'Concrete, roofing, electrical, mech/plumbing');
     if (diesel) html += tile('', 'No. 2 diesel fuel', fmtPct(diesel.cols.latest), 'Volatile; reported separately', diesel);
     html += `</div>`;
-    if (lead && bldg && lead.cols.latest != null && bldg.cols.latest != null) {
-      const gap = Math.round((lead.cols.latest - bldg.cols.latest) * 10) / 10;
-      html += `<p class="gap-note">Input costs are ${gap >= 0 ? 'outpacing' : 'trailing'} building prices by <b>${Math.abs(gap).toFixed(1)} points</b> year over year (inputs ${fmtPct(lead.cols.latest)} vs buildings ${fmtPct(bldg.cols.latest)}). ${gap >= 2 ? 'That gap is margin pressure on fixed-price and GMax work.' : gap <= -2 ? 'Contractor pricing is running ahead of input costs.' : 'The two are moving roughly together.'}</p>`;
-    }
     return html + `</section>`;
   }
 

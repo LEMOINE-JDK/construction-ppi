@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>LEMOINE Final Demand Dashboard</title>
 <meta name="description" content="Quarterly PPI final demand (selling price) for nonresidential buildings and trade contractors, on BLS survey quarters.">
-<link rel="stylesheet" href="assets/site.css?v=6">
+<link rel="stylesheet" href="assets/site.css?v=7">
 </head>
 <body>
 <div class="masthead">
@@ -42,11 +42,11 @@
   </div>
 </footer>
 
-<script src="assets/common.js?v=6"></script>
+<script src="assets/common.js?v=7"></script>
 <script>
 (() => {
   'use strict';
-  const { $, esc, fmtPct, fmtMonth, cssVar, pctChange } = LD;
+  const { $, esc, fmtPct, fmtMonth, cssVar, pctChange, moved } = LD;
   const N = 8; // complete quarters shown in the table
   const COMPARE = 'WPUIP231200';
   let D, byId, Q = {}, keys = [], partial = null, state = { view: 'qoq', a: 'WPU801', b: COMPARE };
@@ -69,10 +69,36 @@
     partial = lead.find((q) => !q.complete) || null;
   }
 
+  function narrative() {
+    const k = keys.at(-1), q = Q.WPU801[k], pk = back(k, 1), yk = back(k, 4);
+    const sh = (key) => esc(Q.WPU801[key]?.short || key);
+    const p = [];
+    let t = `<b>${esc(q.short)} (${esc(q.span)}) is the latest complete survey quarter.</b> Selling prices for new nonresidential buildings ${moved(qoq('WPU801', k))} from ${sh(pk)} (${fmtPct(ann('WPU801', k))} annualized) and stand ${Math.abs(yoy('WPU801', k) ?? 0).toFixed(1)}% ${(yoy('WPU801', k) ?? 0) >= 0 ? 'above' : 'below'} ${sh(yk)}.`;
+    const dir = Math.sign(qoq('WPU801', k) || 0);
+    if (dir) {
+      let n = 0, kk = k;
+      while (Q.WPU801[kk]?.complete && Math.sign(qoq('WPU801', kk) || 0) === dir) { n++; kk = back(kk, 1); }
+      if (n >= 2) t += ` That is the ${n === 2 ? 'second' : n === 3 ? 'third' : `${n}th`} straight quarterly ${dir > 0 ? 'increase' : 'decline'}.`;
+    }
+    p.push(t);
+    const types = D.series.filter((s) => s.kind === 'building' && s.id !== 'WPU801' && qoq(s.id, k) != null).sort((a, b) => qoq(b.id, k) - qoq(a.id, k));
+    const trades = D.series.filter((s) => s.kind === 'trade' && qoq(s.id, k) != null).sort((a, b) => qoq(b.id, k) - qoq(a.id, k));
+    t = '';
+    if (types.length >= 2) t += `<b>By building type,</b> ${esc(types[0].short || types[0].name)} rose fastest for the quarter (${fmtPct(qoq(types[0].id, k))}) and ${esc(types.at(-1).short || types.at(-1).name)} slowest (${fmtPct(qoq(types.at(-1).id, k))}).`;
+    if (trades.length) t += ` The four trade contractors averaged ${fmtPct(tradeAvg(qoq, k))}, led by ${esc(trades[0].short || trades[0].name)} (${fmtPct(qoq(trades[0].id, k))}).`;
+    if (t) p.push(t.trim());
+    const fy = yoy('WPU801', k), iy = yoy(COMPARE, k);
+    if (fy != null && iy != null) {
+      const gap = Math.round((iy - fy) * 10) / 10;
+      p.push(`<b>Cost vs price.</b> Over the four quarters ending ${esc(q.span)}, material input costs ${moved(iy)} while the price contractors charge ${moved(fy)}. ${gap >= 1 ? `Inputs ran ${Math.abs(gap).toFixed(1)} points ahead of final demand, so not all of the material increase reached bid prices.` : gap <= -1 ? `Final demand ran ${Math.abs(gap).toFixed(1)} points ahead of inputs, so labor, overhead or margin added to the increase.` : 'The two moved roughly together.'}`);
+    }
+    return LD.readout(p);
+  }
+
   function renderSummary() {
     const k = keys.at(-1), q = Q.WPU801[k];
     const tile = (cls, eyebrow, val, sub) => `<div class="kpi ${cls}"><span class="eyebrow">${eyebrow}</span><span class="val num">${val}</span><span class="sub">${sub}</span></div>`;
-    let html = `<section id="summary" aria-labelledby="h-sum"><h2 id="h-sum">Latest complete quarter: ${esc(q.short)} (${esc(q.span)})</h2><p class="lede">Quarter-over-quarter change in the average index. These are selling-price indexes, the right basis for whole-building escalation.</p><div class="kpis">`;
+    let html = `<section id="summary" aria-labelledby="h-sum"><h2 id="h-sum">Latest complete quarter: ${esc(q.short)} (${esc(q.span)})</h2>${narrative()}<p class="lede">Quarter-over-quarter change in the average index. These are selling-price indexes, the right basis for whole-building escalation.</p><div class="kpis">`;
     const t = (id, label, cls = '') => byId[id] ? tile(cls, label, fmtPct(qoq(id, k)), `${fmtPct(yoy(id, k))} YoY · ${fmtPct(ann(id, k))} annualized`) : '';
     html += t('WPU801', 'New nonres buildings', 'lead');
     html += t('WPU801105', 'Health care building');
@@ -80,11 +106,6 @@
     html += tile('', 'Avg of 4 trade contractors', fmtPct(tradeAvg(qoq, k)), `${fmtPct(tradeAvg(yoy, k))} YoY`);
     if (byId[COMPARE]) html += tile('', 'Nonres inputs (cost only)', fmtPct(qoq(COMPARE, k)), `${fmtPct(yoy(COMPARE, k))} YoY · for comparison`);
     html += `</div>`;
-    const fy = yoy('WPU801', k), iy = yoy(COMPARE, k);
-    if (fy != null && iy != null) {
-      const gap = Math.round((iy - fy) * 10) / 10;
-      html += `<p class="gap-note">Over the four quarters ending ${esc(q.span)}, material inputs rose <b>${fmtPct(iy)}</b> while the price contractors charge for nonresidential buildings rose <b>${fmtPct(fy)}</b>. ${gap >= 1 ? `Inputs ran ${Math.abs(gap).toFixed(1)} points ahead of final demand, so not all of the material increase reached bid prices.` : gap <= -1 ? `Final demand ran ${Math.abs(gap).toFixed(1)} points ahead of inputs, so labor, overhead or margin added to the increase.` : 'The two moved roughly together.'}</p>`;
-    }
     if (partial) {
       const rel = LD.addMonths(partial.end, 1);
       html += `<p class="note warn" style="margin-top:12px"><b>${esc(partial.short)} is in progress.</b> ${partial.n} of 3 months are reported (modeled values). The survey correction arrives with the ${esc(fmtMonth(partial.end))} data, released by BLS in mid-${esc(LD.MON[+rel.slice(5, 7) - 1])} ${rel.slice(0, 4)}. Do not read the partial quarter as a trend.</p>`;

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>LEMOINE Construction Spending Dashboard</title>
 <meta name="description" content="Census construction spending by market, in current and constant dollars. Updated automatically.">
-<link rel="stylesheet" href="assets/site.css?v=6">
+<link rel="stylesheet" href="assets/site.css?v=7">
 </head>
 <body>
 <div class="masthead">
@@ -41,20 +41,42 @@
   </div>
 </footer>
 
-<script src="assets/common.js?v=6"></script>
+<script src="assets/common.js?v=7"></script>
 <script>
 (() => {
   'use strict';
-  const { $, esc, fmtPct, fmtBil, fmtMonth, cssVar, spark, tone } = LD;
+  const { $, esc, fmtPct, fmtBil, fmtMonth, cssVar, spark, tone, moved } = LD;
   let D, byKey, state = { key: 'nrbldg', range: 60 };
 
   function kpi(cls, eyebrow, val, sub, values) {
     return `<div class="kpi ${cls}"><span class="eyebrow">${eyebrow}</span><span class="val num">${val}</span><span class="sub">${sub}</span>${values ? spark(values) : ''}</div>`;
   }
 
+  function narrative() {
+    const t = byKey.total, nb = byKey.nrbldg, L = D.dataMonth, Ly = +L.slice(0, 4);
+    const prev = LD.fmtMonthLong(LD.addMonths(L, -1)).split(' ')[0];
+    const p = [];
+    let s = `<b>${esc(LD.fmtMonthLong(L))} construction spending.</b> Nonresidential building spending ran at <b>${fmtBil(nb.latest, 0)}</b> a year (seasonally adjusted), ${moved(nb.mom)} from ${prev} and ${moved(nb.yoy)} from a year ago.`;
+    if (nb.realYoy != null) {
+      const gap = Math.round((nb.yoy - nb.realYoy) * 10) / 10;
+      s += ` After construction price inflation the change is <b>${fmtPct(nb.realYoy)}</b>, so about ${Math.abs(gap).toFixed(1)} points of the dollar change is price, not volume. ${nb.realYoy < 0 ? 'Less physical work is being put in place than a year ago.' : 'Physical volume is still growing.'}`;
+    }
+    if (nb.ytdPct != null) s += ` Year to date, nonresidential building spending is ${Math.abs(nb.ytdPct).toFixed(1)}% ${nb.ytdPct >= 0 ? 'above' : 'below'} the same months of ${Ly - 1}.`;
+    p.push(s);
+    const mk = D.markets.filter((m) => m.group === 'Nonresidential Buildings' && m.yoy != null).sort((a, b) => b.yoy - a.yoy);
+    const lbl = (m) => `${esc(m.name.replace(/ \(.*\)$/, ''))} (${fmtPct(m.yoy)})`;
+    s = '';
+    if (mk.length >= 4) s += `<b>By market,</b> the strongest year-over-year gains are in ${LD.joinList(mk.slice(0, 2).map(lbl))}; the weakest are ${LD.joinList(mk.slice(-2).reverse().map(lbl))}.`;
+    const core = ['health', 'edu', 'office'].map((k) => byKey[k]).filter((m) => m && m.yoy != null);
+    if (core.length) s += ` Health care, educational and office (including data centers) spending changed ${LD.joinList(core.map((m) => fmtPct(m.yoy)))} respectively.`;
+    if (s) p.push(s.trim());
+    if (t) p.push(`Total U.S. construction, including residential and infrastructure, ran at ${fmtBil(t.latest, 0)}, ${moved(t.yoy, 'up', 'down')} from a year ago. Census revises the last two months with each release.`);
+    return LD.readout(p);
+  }
+
   function renderSummary() {
     const t = byKey.total, nb = byKey.nrbldg, h = byKey.health, e = byKey.edu, mfg = byKey.mfg, of = byKey.office;
-    let html = `<section id="summary" aria-labelledby="h-sum"><h2 id="h-sum">Construction spending, ${esc(D.dataMonthLabel)}</h2><p class="lede">Year-over-year change in the seasonally adjusted annual rate. Sparklines show the last 25 months.</p><div class="kpis">`;
+    let html = `<section id="summary" aria-labelledby="h-sum"><h2 id="h-sum">Construction spending, ${esc(D.dataMonthLabel)}</h2>${narrative()}<p class="lede">Year-over-year change in the seasonally adjusted annual rate. Sparklines show the last 25 months.</p><div class="kpis">`;
     html += kpi('lead', 'Nonresidential buildings', fmtPct(nb.yoy), `${fmtBil(nb.latest, 0)} SAAR · ${fmtPct(nb.realYoy)} after inflation`, nb.history);
     html += kpi('', 'Health care', fmtPct(h.yoy), `${fmtBil(h.latest)} SAAR · YTD ${fmtPct(h.ytdPct)}`, h.history);
     html += kpi('', 'Educational', fmtPct(e.yoy), `${fmtBil(e.latest)} SAAR · YTD ${fmtPct(e.ytdPct)}`, e.history);
@@ -62,10 +84,6 @@
     html += kpi('', 'Manufacturing', fmtPct(mfg.yoy), `${fmtBil(mfg.latest)} SAAR · YTD ${fmtPct(mfg.ytdPct)}`, mfg.history);
     html += kpi('', 'Total construction', fmtPct(t.yoy), `${fmtBil(t.latest, 0)} SAAR`, t.history);
     html += `</div>`;
-    if (nb.yoy != null && nb.realYoy != null) {
-      const gap = Math.round((nb.yoy - nb.realYoy) * 10) / 10;
-      html += `<p class="gap-note">Nonresidential building spending is ${fmtPct(nb.yoy)} in dollars but <b>${fmtPct(nb.realYoy)}</b> after construction price inflation. About ${Math.abs(gap).toFixed(1)} points of the dollar change is price, not volume. ${nb.realYoy < 0 ? 'Less physical work is being put in place than a year ago.' : 'Physical volume is still growing.'}</p>`;
-    }
     return html + '</section>';
   }
 

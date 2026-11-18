@@ -4,6 +4,8 @@ on:
   schedule:
     # Mondays and Thursdays, 15:17 UTC (9:17 or 10:17 Central). BLS posts PPI mid-month around 7:30 Central.
     - cron: '17 15 * * 1,4'
+    # Daily on the 12th through 16th, when BLS releases PPI, so new prices post the day they come out.
+    - cron: '17 15 12-16 * *'
   workflow_dispatch: {}
   push:
     branches: [main]
