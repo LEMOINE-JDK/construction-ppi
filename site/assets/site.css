@@ -97,6 +97,7 @@ section > h2 { font-size: 1.2rem; margin: 0 0 4px; text-wrap: balance; }
 .readout p:last-child { margin-bottom: 0; }
 .readout b { font-variant-numeric: tabular-nums; }
 
+/* Tables (WORKING_RULES rule 33): words left, numbers and dates right, headers follow their column, Total row has a thin top border. */
 /* Heatmap tables */
 .tablebox { overflow-x: auto; border: 1px solid var(--rule); }
 table.heat { border-collapse: collapse; width: 100%; min-width: 820px; font-size: .86rem; }
@@ -110,7 +111,7 @@ table.heat { border-collapse: collapse; width: 100%; min-width: 820px; font-size
 .heat td.cell { font-variant-numeric: tabular-nums; min-width: 68px; }
 .heat td.cell.latest { font-weight: 700; }
 .heat td.mom { color: var(--ink-2); font-variant-numeric: tabular-nums; font-size: .8rem; }
-.heat tr.avg td { font-weight: 700; border-top: 2px solid var(--ink); }
+.heat tr.avg td { font-weight: 700; border-top: 1px solid var(--ink); }
 .nm { display: flex; flex-direction: column; }
 .nm .t { font-weight: 600; }
 .nm .id { font-family: var(--mono); font-size: .7rem; color: var(--ink-3); text-decoration: none; }
@@ -204,7 +205,7 @@ table.plain { border-collapse: collapse; width: 100%; font-size: .86rem; }
 .plain th:first-child, .plain td:first-child { text-align: left; white-space: normal; }
 .plain thead th { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); font-weight: 600; vertical-align: bottom; }
 .plain tr.grp th { text-align: left; background: var(--paper-2); font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-2); padding-top: 12px; }
-.plain tr.total td { font-weight: 700; }
+.plain tr.total td { font-weight: 700; border-top: 1px solid var(--ink); }
 .plain tr.click { cursor: pointer; }
 .plain tr.click:hover td:first-child, .plain tr.click.sel td:first-child { box-shadow: inset 4px 0 0 var(--yellow); }
 .pos { color: var(--up-text); } .neg { color: var(--dn-text); }
